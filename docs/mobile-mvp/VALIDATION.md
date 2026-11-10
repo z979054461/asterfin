@@ -74,8 +74,29 @@ The latter compiled the Android app and its native modules with
 `:app:compileDebugKotlin`, and ran the Swift production core. It did not package
 an APK or compile the complete iOS app.
 
-The next checks build an unsigned ARM64 Android Release APK with all generated
-signing bindings disabled, and compile the whole unsigned iOS device app. Results
-are pending the exact commit's workflow runs. These workflows deliberately do not
-upload APK/IPA binaries or publish releases. See [TEST-BUILDS.md](TEST-BUILDS.md)
-for scope and remaining runtime validation.
+The complete-build workflow commit is `405c392f642e756650413345157fb34fb2b93288`.
+Its [source checks](https://github.com/z979054461/jellyfin-mobile/actions/runs/42746414029)
+passed: 155 suites / 1976 tests, TypeScript, Biome, i18n, Java core 257 assertions
+and iOS static 19 assertions. Expo Doctor remains 18/20 (the existing unmaintained
+edge-to-edge package warning and 19 SDK patch-version suggestions). The separate
+Swift production core job passed 53 assertions.
+
+- [Android full build](https://github.com/z979054461/jellyfin-mobile/actions/runs/42746414121)
+  passed in 18m51s. It generated an unsigned ARM64 Release APK of 109,601,527 bytes.
+  Development package identity, non-debuggable manifest, bundled JavaScript,
+  DEX, MPV/Hermes/React Native libraries, and unsigned status were checked.
+  SHA256: `f68a21f6451227da9fb78fe0e4ef02bf67a35f4b56cedbf14b19d24b70aa1a45`.
+  This APK cannot be installed without separately authorized signing.
+- [iOS full build](https://github.com/z979054461/jellyfin-mobile/actions/runs/42746414626)
+  passed Xcode 26.6 / Metal setup, CocoaPods, and the complete unsigned arm64
+  Release app compilation step (16m37s). The final output-verification step failed,
+  so the workflow is not a full pass. Review found an independently invalid `lipo`
+  argument order in that step. The verification command is corrected and the build
+  log output is bounded so future failures remain inspectable; the rerun must pass
+  before reporting complete iOS output verification. The first full log could not
+  be retrieved through the connector, so the exact failed assertion is unconfirmed.
+
+Both runs have empty artifact lists. No APK/IPA binary or release was uploaded,
+no signing key was used, and no user server/device was accessed. There has been no
+emulator, physical-device, playback, or danmaku integration run. See
+[TEST-BUILDS.md](TEST-BUILDS.md) for the remaining runtime validation.

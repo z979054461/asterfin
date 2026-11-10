@@ -92,6 +92,8 @@ jobs:
         # the production helper: it also packages an IPA after building.
         run: |
           set -euo pipefail
+          build_log="$RUNNER_TEMP/jellyfin-ios-build.log"
+          set +e
           xcodebuild \
             -workspace ios/JellyfinMobileDev.xcworkspace \
             -scheme JellyfinMobileDev \
@@ -105,18 +107,30 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY= \
             DEVELOPMENT_TEAM= \
-            build
+            build > "$build_log" 2>&1
+          build_status=$?
+          set -e
+          if [ "$build_status" -ne 0 ]; then
+            echo 'First 100 compiler error lines:'
+            grep -m 100 -E '(^|[[:space:]])(fatal )?error:' "$build_log" || true
+            echo 'Last 100 build log lines:'
+            tail -n 100 "$build_log" || true
+          else
+            tail -n 20 "$build_log" || true
+          fi
+          # Preserve xcodebuild's status even if diagnostic extraction fails.
+          exit "$build_status"
 
       - name: Verify actual app outputs, without exporting or uploading
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           app="$RUNNER_TEMP/jellyfin-ios-derived-data/Build/Products/Release-iphoneos/JellyfinMobileDev.app"
           test -s "$app/JellyfinMobileDev"
           test -s "$app/main.jsbundle"
           test -s "$app/PlugIns/StreamyfinDownloadActivity.appex/StreamyfinDownloadActivity"
           bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")
           test "$bundle_id" = 'org.personal.jellyfinmobile.dev'
-          xcrun lipo -verify_arch arm64 "$app/JellyfinMobileDev"
+          xcrun lipo "$app/JellyfinMobileDev" -verify_arch arm64
           {
             echo '### iOS compile check passed'
             echo 'The complete arm64 Release app, bundled JavaScript and Live Activity extension were built without Apple credentials.'
