@@ -1,4 +1,4 @@
-# Source-free parallel transport smoke. No source build, APK or signing Secrets.
+# Separate fresh GitHub-hosted build/sign VMs. Public artifacts are ciphertext or an ephemeral public certificate only.
 {
   "name": "Android private test build",
   "on": {
@@ -41,9 +41,9 @@
           "run": "python3 \"$RUNNER_TEMP/jfm-source-build/artifact_handshake.py\" fetch-recipient --output-dir \"$RUNNER_TEMP/jfm-source-build/recipient-artifact\" --timeout 600"
         },
         {
-          "name": "Create synthetic transport fixture",
+          "name": "Build reviewed source in nonroot container",
           "shell": "bash",
-          "run": "python3 - <<'PYSMOKE'\nimport hashlib,json,os\nfrom pathlib import Path\nroot=Path(os.environ['RUNNER_TEMP'])/'jfm-source-build'\ndata=b'Synthetic private transport smoke only; not an APK or source build.\\n'\n(root/'unsigned.apk').write_bytes(data)\n(root/'build-facts.json').write_text(json.dumps({'source_commit':'6157ff04e1e039a311c829b58bc7aa03023d0889','version_code':1,'unsigned_sha256':hashlib.sha256(data).hexdigest(),'container_destroyed':True}))\nprint('PASS: synthetic transport fixture prepared; no source or signing Secrets')\nPYSMOKE\n"
+          "run": "python3 \"$RUNNER_TEMP/jfm-source-build/build_host_separate.py\""
         },
         {
           "name": "Encrypt unsigned transfer without signing credentials",
@@ -124,7 +124,7 @@
             "GITHUB_TOKEN": "${{ github.token }}"
           },
           "shell": "bash",
-          "run": "python3 \"$RUNNER_TEMP/jfm-signer/artifact_handshake.py\" fetch-unsigned --output-dir \"$RUNNER_TEMP/jfm-signer/unsigned-artifact\" --timeout 600"
+          "run": "python3 \"$RUNNER_TEMP/jfm-signer/artifact_handshake.py\" fetch-unsigned --output-dir \"$RUNNER_TEMP/jfm-signer/unsigned-artifact\" --timeout 5400"
         },
         {
           "name": "Authenticate and decode private input without signing Secrets",
@@ -132,15 +132,51 @@
           "run": "python3 \"$RUNNER_TEMP/jfm-signer/prepare_separate_signer.py\""
         },
         {
-          "name": "Verify source-free transport smoke",
+          "name": "Independently verify and align unsigned APK without signing Secrets",
           "shell": "bash",
-          "run": "python3 - <<'PYSMOKE'\nimport os\nfrom pathlib import Path\nroot=Path(os.environ['RUNNER_TEMP'])/'jfm-signer'\nassert (root/'unsigned.apk').read_bytes()==b'Synthetic private transport smoke only; not an APK or source build.\\n'\nassert not (root/'one-run-recipient').exists()\nprint('PASS: private two-VM transport and ephemeral-key cleanup verified; no APK or signing Secrets')\nPYSMOKE\n"
+          "run": "python3 \"$RUNNER_TEMP/jfm-signer/sign_host_separate.py\" --prepare"
+        },
+        {
+          "name": "Sign only the independently checked APK",
+          "env": {
+            "ANDROID_KEYSTORE_BASE64": "${{ secrets.ANDROID_KEYSTORE_BASE64 }}",
+            "ANDROID_KEYSTORE_PASSWORD": "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}",
+            "ANDROID_KEY_ALIAS": "${{ secrets.ANDROID_KEY_ALIAS }}",
+            "ANDROID_KEY_PASSWORD": "${{ secrets.ANDROID_KEY_PASSWORD }}"
+          },
+          "shell": "bash",
+          "run": "python3 \"$RUNNER_TEMP/jfm-signer/sign_host_separate.py\""
+        },
+        {
+          "name": "Encrypt final private delivery after signing credentials are removed",
+          "shell": "bash",
+          "run": "set -euo pipefail\numask 077\nmkdir -m 700 \"$RUNNER_TEMP/asterfin-private-transfer\"\npython3 \"$RUNNER_TEMP/jfm-signer/private_delivery.py\" encrypt-host-result \\\n  --signing-root \"$RUNNER_TEMP/jfm-signer\" \\\n  --certificate \"$RUNNER_TEMP/jfm-signer/private_delivery_recipient.pem\" \\\n  --certificate-pin 1fe0500436cceb73a0d4e4a65e71476440222198a64bc1e7deb7a1a347ffae2c \\\n  --output \"$RUNNER_TEMP/asterfin-private-transfer/delivery.cms\"\npython3 - <<'PYHASH'\nimport hashlib,os\nfrom pathlib import Path\npath=Path(os.environ['RUNNER_TEMP'])/'asterfin-private-transfer/delivery.cms'\nwith path.open('rb') as stream: print('Private delivery ciphertext SHA256: '+hashlib.file_digest(stream,'sha256').hexdigest())\nPYHASH\n"
         },
         {
           "name": "Dispose signer plaintext and temporary keys",
           "if": "${{ always() }}",
           "shell": "bash",
           "run": "set -euo pipefail\nrm -rf -- \"$RUNNER_TEMP/jfm-signer\"\ntest ! -e \"$RUNNER_TEMP/jfm-signer\" && test ! -L \"$RUNNER_TEMP/jfm-signer\"\n"
+        },
+        {
+          "name": "Transfer exactly one authenticated private delivery",
+          "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+          "with": {
+            "name": "asterfin-private-test-${{ github.run_id }}-${{ github.run_attempt }}",
+            "path": "${{ runner.temp }}/asterfin-private-transfer/delivery.cms",
+            "if-no-files-found": "error",
+            "retention-days": 1,
+            "compression-level": 0,
+            "archive": true,
+            "overwrite": false,
+            "include-hidden-files": false
+          }
+        },
+        {
+          "name": "Dispose signer ciphertext",
+          "if": "${{ always() }}",
+          "shell": "bash",
+          "run": "rm -rf -- \"$RUNNER_TEMP/asterfin-private-transfer\""
         }
       ]
     }
