@@ -52,7 +52,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
     config.plugins?.push([
       "react-native-google-cast",
-      { useDefaultExpandedMediaControls: true },
+      {
+        useDefaultExpandedMediaControls: true,
+        // The plugin defaults to "+". Cast 23 pulls MediaRouter requiring
+        // API 37 / AGP 9.1, beyond this Expo baseline's API 36 / AGP 8.12.
+        androidPlayServicesCastFrameworkVersion: "22.3.1",
+      },
     ]);
 
     config.plugins?.push([

@@ -53,3 +53,14 @@
 - 真实 Kotlin 日志脱敏函数：独立编译并执行五条上游回归用例通过。不是整个原生模块的 Gradle/JUnit 测试通过。
 - 类型检查、Biome lint/format/check、i18n 通过；iOS 结构检查 19 条通过，Swift 执行仍待 CI。
 - 最终 Expo Doctor 为 **18/20**：保留 `react-native-edge-to-edge` 维护警告，并新增在线 SDK 版本表对 19 个补丁版本的升级建议。未为消除提示而更改锁文件或隐藏诊断。因此完整质量门禁仍未全部通过。
+
+## GitHub 首轮原生 CI · 2026-11-10
+
+源码快照已推送到独立 `mobile-dev` 分支，提交 `c9d785ea3b2fad8a25f85c9d310832732057010f`；`develop` 未改动。
+
+- [源码检查](https://github.com/z979054461/jellyfin-mobile/actions/runs/42740288603)通过：155 suites / 1975 tests、TypeScript、Biome、i18n、Java 核心 257 条与 iOS 静态 19 条断言。Expo Doctor 仍为 18/20；该步骤允许失败，因此绿色工作流不代表 Doctor 无告警。
+- [原生检查](https://github.com/z979054461/jellyfin-mobile/actions/runs/42740288686)中，macOS 首次编译并运行 Swift 生产核心，53 条断言通过。该测试未编译 UIKit/Expo/MPVKit App，也没有运行模拟器或真机。
+- Android 预生成成功，但编译停在 `:app:checkDebugAarMetadata`：Cast 插件默认 `+` 拉入 Cast 23 / MediaRouter 1.9.0-beta01，要求 API 37 与 AGP 9.1，而当前基线使用 API 36 / AGP 8.12。
+- 后续修复通过插件正式配置项将 Cast SDK 固定为 22.3.1，避免动态升级越过工具链兼容边界。新增配置回归测试在修复前失败；整机编译结果以修复提交的 Actions 为准，不能把依赖固定当作已构建通过。
+
+没有生成或发布 APK/IPA，没有访问用户服务器、设备或签名账户。

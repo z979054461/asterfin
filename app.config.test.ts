@@ -22,6 +22,30 @@ const catalogTargetSdk = Number(
 
 const appJson = JSON.parse(readFileSync(join(__dirname, "app.json"), "utf8"));
 
+test("pins the mobile Cast SDK before it can pull an incompatible Android API", () => {
+  const previous = process.env.EXPO_TV;
+  process.env.EXPO_TV = "0";
+  try {
+    const { plugins = [] } = resolveConfig({
+      config: structuredClone(appJson.expo),
+    } as ConfigContext);
+    const cast = plugins.find(
+      (plugin) =>
+        Array.isArray(plugin) && plugin[0] === "react-native-google-cast",
+    );
+    // Cast 23's MediaRouter needs API 37 / AGP 9.1; this Expo baseline uses 36 / 8.12.
+    expect(cast).toEqual([
+      "react-native-google-cast",
+      expect.objectContaining({
+        androidPlayServicesCastFrameworkVersion: "22.3.1",
+      }),
+    ]);
+  } finally {
+    if (previous === undefined) delete process.env.EXPO_TV;
+    else process.env.EXPO_TV = previous;
+  }
+});
+
 /** The targetSdkVersion pinned in the resolved config; the last entry wins at prebuild. */
 const pinnedTargetSdk = (tv: boolean): number | undefined => {
   const previous = process.env.EXPO_TV;
