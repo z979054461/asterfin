@@ -32,6 +32,30 @@ background/PiP, seek/speed/episode changes, and credential-redacted logs. See
 [ANDROID.md](ANDROID.md) for the full test matrix. The ARM64 package does not
 validate x86_64 emulator support.
 
+### Isolated Android credential preflight
+
+`android-signing-preflight.yml` checks the four configured repository Secrets:
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and
+`ANDROID_KEY_PASSWORD`. It runs only for this repository's `mobile-dev` branch,
+with no checkout, project scripts, build dependencies, cache, or artifact upload.
+The existing unsigned build workflows do not receive these Secrets.
+
+The preflight accepts a single-key PKCS12 with the `jellyfin-mobile-dev` alias,
+matching store/key passwords, and a generic Jellyfin Mobile certificate subject.
+It rejects personal subject/issuer fields, alternative names, and unsupported
+certificate extensions before emitting any certificate information. A temporary
+in-memory signature proof checks that the private key matches the certificate.
+Only fixed pass/failure messages and the validated certificate's public SHA-256
+fingerprint are logged. Passwords, encoded keystores, and certificate subjects
+are never printed or uploaded. Temporary credential files are removed on normal
+completion; the runner is ephemeral, not a backup location.
+
+This is a credentials check, not a signed APK build or an installation test.
+Signing and source builds must retain separate trust boundaries. Public-repository
+Actions artifacts are not a private transfer channel. Do not upload unsigned or
+signed test APKs without explicit authorization for that visibility, and do not
+reuse an unrelated upstream README/PR build as the custom mobile client.
+
 ## iOS
 
 `ios-app-check.yml` builds the full iPhone/iPad app and its Live Activity extension

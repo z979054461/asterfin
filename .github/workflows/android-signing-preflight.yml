@@ -1,0 +1,220 @@
+# Credentials-only check: no checkout, project scripts, APK upload, or release.
+name: Android signing credential preflight
+'on':
+  push:
+    branches:
+    - mobile-dev
+    paths:
+    - .github/workflows/android-signing-preflight.yml
+  workflow_dispatch: {}
+permissions: {}
+concurrency:
+  group: android-signing-preflight
+  cancel-in-progress: false
+jobs:
+  verify-credentials:
+    if: ${{ github.repository == 'z979054461/jellyfin-mobile' && github.ref == 'refs/heads/mobile-dev' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+      with:
+        distribution: temurin
+        java-version: '17'
+    - name: Validate secrets and generic certificate without checkout or artifacts
+      env:
+        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        JAVA_TOOL_OPTIONS: ''
+        JDK_JAVA_OPTIONS: ''
+        _JAVA_OPTIONS: ''
+        PYTHONPATH: ''
+        PYTHONHOME: ''
+      run: |
+        set -euo pipefail
+        python3 - <<'PYPREFLIGHT'
+        import base64
+        import binascii
+        import os
+        from pathlib import Path
+        import re
+        import subprocess
+        import sys
+        import tempfile
+
+        NAMES = (
+            "ANDROID_KEYSTORE_BASE64", "ANDROID_KEYSTORE_PASSWORD",
+            "ANDROID_KEY_ALIAS", "ANDROID_KEY_PASSWORD",
+        )
+
+        def fail(message):
+            print(message, file=sys.stderr)
+            raise SystemExit(1)
+
+        def main():
+            os.umask(0o077)
+            # Remove from the environment before invoking any child process.
+            values = {name: os.environ.pop(name, "") for name in NAMES}
+            missing = [name for name, value in values.items() if not value]
+            if missing:
+                fail("Missing repository Secrets: " + ", ".join(missing))
+            if values["ANDROID_KEY_ALIAS"] != "jellyfin-mobile-dev":
+                fail("ANDROID_KEY_ALIAS does not match the expected project alias; its value is not logged.")
+            password = values["ANDROID_KEYSTORE_PASSWORD"]
+            if password != values["ANDROID_KEY_PASSWORD"]:
+                fail("This PKCS12 configuration expects matching store and key passwords; values are not logged.")
+            if len(password) < 16 or len(password) > 1024 or not password.isascii() or password != password.strip() or any(c in password for c in ("\r", "\n", "\x00")):
+                fail("Password format does not meet the agreed strong single-line ASCII requirements; its value is not logged.")
+            encoded = values["ANDROID_KEYSTORE_BASE64"]
+            if len(encoded) >= 48000:
+                fail("Encoded keystore exceeds the supported size; no contents are logged.")
+            try:
+                encrypted_key = base64.b64decode(encoded, validate=True)
+            except (ValueError, binascii.Error):
+                fail("ANDROID_KEYSTORE_BASE64 must be standard single-line Base64; no contents are logged.")
+            if not encrypted_key or len(encrypted_key) >= 36000:
+                fail("Decoded keystore has an unexpected size; no contents are logged.")
+            values.clear()
+            encoded = None
+            with tempfile.TemporaryDirectory(prefix="signing-preflight-", dir=os.environ["RUNNER_TEMP"]) as directory:
+                directory = Path(directory)
+                keystore = directory / "input.p12"
+                secret_file = directory / "password.txt"
+                java_source = directory / "SigningPreflight.java"
+                keystore.write_bytes(encrypted_key)
+                secret_file.write_text(password, encoding="ascii")
+                java_source.write_text(JAVA_SOURCE, encoding="utf-8")
+                encrypted_key = password = None
+                # All source is trusted inline workflow code, not repository/dependency code.
+                try:
+                    result = subprocess.run(
+                        [str(Path(os.environ["JAVA_HOME"]) / "bin/java"), str(java_source), str(keystore), str(secret_file)],
+                        cwd=directory, text=True, capture_output=True, timeout=60,
+                        env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+                    )
+                except (OSError, subprocess.TimeoutExpired):
+                    fail("Isolated verifier could not complete; no diagnostic contents are logged.")
+            if result.returncode != 0:
+                # Only permit the verifier's fixed failure stages, never arbitrary Java diagnostics.
+                stage = re.fullmatch(r"Signing preflight failed at ([a-z-]+)\. No secret or certificate identity is included in this message\.\n", result.stderr)
+                if stage and stage[1] in {"input", "keystore-unlock", "alias-and-entry", "certificate-privacy", "certificate-validity", "private-key-unlock", "private-key-certificate-match"}:
+                    fail("Signing preflight failed: " + stage[1] + ". Secret values and certificate identity were not logged.")
+                fail("Signing preflight failed in the isolated verifier. No diagnostic contents are logged.")
+            fingerprint = re.fullmatch(r"CERT_SHA256=([0-9a-f]{64})\n", result.stdout)
+            if not fingerprint:
+                fail("Unexpected verifier output; output suppressed.")
+            print("PASS: PKCS12 format, passwords, alias, private key, generic certificate identity, and key/certificate match.")
+            print("Public signing certificate SHA-256: " + fingerprint[1])
+            summary = "### Android signing credential preflight\n\nConfiguration and certificate privacy checks passed.\n\nPublic certificate SHA-256: `" + fingerprint[1] + "`.\n\nNo project source or dependencies were run. No APK was built, signed, or uploaded. Secret material was not logged or uploaded.\n"
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+                output.write(summary)
+
+        JAVA_SOURCE = r"""
+        import java.nio.file.Files;
+        import java.nio.file.Path;
+        import java.security.KeyStore;
+        import java.security.MessageDigest;
+        import java.security.PrivateKey;
+        import java.security.SecureRandom;
+        import java.security.Security;
+        import java.security.Signature;
+        import java.security.cert.X509Certificate;
+        import java.security.interfaces.RSAKey;
+        import java.util.Arrays;
+        import java.util.HashSet;
+        import java.util.HexFormat;
+        import java.util.Set;
+        import javax.security.auth.x500.X500Principal;
+
+        class SigningPreflight {
+            private static final String ALIAS = "jellyfin-mobile-dev";
+            private static final Set<String> SUBJECTS = Set.of(
+                "CN=Jellyfin Mobile Development", "CN=Jellyfin Mobile Dev", "CN=Jellyfin Mobile"
+            );
+            private static final Set<String> TECHNICAL_EXTENSIONS = Set.of(
+                "2.5.29.14", "2.5.29.15", "2.5.29.19", "2.5.29.37"
+            );
+
+            private static boolean genericSubject(X500Principal subject) {
+                return SUBJECTS.contains(subject.getName(X500Principal.RFC2253));
+            }
+
+            private static void require(boolean condition) throws Exception {
+                if (!condition) throw new Exception("Validation failed");
+            }
+
+            public static void main(String[] args) {
+                if (args.length == 1 && args[0].equals("--self-test")) {
+                    if (!genericSubject(new X500Principal("CN=Jellyfin Mobile Development"))
+                        || !genericSubject(new X500Principal("CN=Jellyfin Mobile"))
+                        || genericSubject(new X500Principal("CN=Example Person"))
+                        || genericSubject(new X500Principal("CN=Jellyfin Mobile,O=Example Company"))) {
+                        System.exit(1);
+                    }
+                    System.out.println("Generic subject allowlist self-test passed; no key was used.");
+                    return;
+                }
+
+                char[] password = null;
+                String stage = "input";
+                int status = 0;
+                try {
+                    require(args.length == 2);
+                    password = Files.readString(Path.of(args[1])).toCharArray();
+                    // Reject the JDK's JKS compatibility fallback: this input must be PKCS12.
+                    Security.setProperty("keystore.type.compat", "false");
+                    KeyStore store = KeyStore.getInstance("PKCS12");
+                    stage = "keystore-unlock";
+                    try (var input = Files.newInputStream(Path.of(args[0]))) {
+                        store.load(input, password);
+                    }
+                    stage = "alias-and-entry";
+                    require(store.size() == 1 && store.isKeyEntry(ALIAS));
+                    var chain = store.getCertificateChain(ALIAS);
+                    require(chain != null && chain.length == 1 && chain[0] instanceof X509Certificate);
+                    X509Certificate certificate = (X509Certificate) chain[0];
+                    stage = "certificate-privacy";
+                    require(genericSubject(certificate.getSubjectX500Principal()));
+                    require(certificate.getIssuerX500Principal().equals(certificate.getSubjectX500Principal()));
+                    Set<String> extensions = new HashSet<>();
+                    if (certificate.getCriticalExtensionOIDs() != null) extensions.addAll(certificate.getCriticalExtensionOIDs());
+                    if (certificate.getNonCriticalExtensionOIDs() != null) extensions.addAll(certificate.getNonCriticalExtensionOIDs());
+                    require(TECHNICAL_EXTENSIONS.containsAll(extensions));
+                    require(certificate.getSubjectAlternativeNames() == null && certificate.getIssuerAlternativeNames() == null);
+                    stage = "certificate-validity";
+                    certificate.checkValidity();
+                    certificate.verify(certificate.getPublicKey());
+                    stage = "private-key-unlock";
+                    var key = store.getKey(ALIAS, password);
+                    require(key instanceof PrivateKey && key instanceof RSAKey);
+                    require(((RSAKey) key).getModulus().bitLength() >= 2048);
+                    stage = "private-key-certificate-match";
+                    byte[] challenge = new byte[32];
+                    new SecureRandom().nextBytes(challenge);
+                    Signature proof = Signature.getInstance("SHA256withRSA");
+                    proof.initSign((PrivateKey) key);
+                    proof.update(challenge);
+                    byte[] signature = proof.sign();
+                    proof.initVerify(certificate.getPublicKey());
+                    proof.update(challenge);
+                    require(proof.verify(signature));
+                    String fingerprint = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(certificate.getEncoded()));
+                    // This is a public fingerprint, emitted only after the privacy checks.
+                    System.out.println("CERT_SHA256=" + fingerprint);
+                } catch (Exception ignored) {
+                    // Never print the exception, certificate subject, file contents, or passwords.
+                    System.err.println("Signing preflight failed at " + stage + ". No secret or certificate identity is included in this message.");
+                    status = 1;
+                } finally {
+                    if (password != null) Arrays.fill(password, '\0');
+                }
+                if (status != 0) System.exit(status);
+            }
+        }
+        """
+
+        if __name__ == "__main__":
+            main()
+        PYPREFLIGHT
