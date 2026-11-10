@@ -64,3 +64,18 @@
 - 后续修复通过插件正式配置项将 Cast SDK 固定为 22.3.1，避免动态升级越过工具链兼容边界。新增配置回归测试在修复前失败；整机编译结果以修复提交的 Actions 为准，不能把依赖固定当作已构建通过。
 
 没有生成或发布 APK/IPA，没有访问用户服务器、设备或签名账户。
+
+## Complete test-build checks · 2026-11-10
+
+The Cast SDK fix at `df6aad89dd75cf0434bb2598a27cd88e8bfcfbbd` passed
+[source CI](https://github.com/z979054461/jellyfin-mobile/actions/runs/42742932347)
+and [native CI](https://github.com/z979054461/jellyfin-mobile/actions/runs/42742932544).
+The latter compiled the Android app and its native modules with
+`:app:compileDebugKotlin`, and ran the Swift production core. It did not package
+an APK or compile the complete iOS app.
+
+The next checks build an unsigned ARM64 Android Release APK with all generated
+signing bindings disabled, and compile the whole unsigned iOS device app. Results
+are pending the exact commit's workflow runs. These workflows deliberately do not
+upload APK/IPA binaries or publish releases. See [TEST-BUILDS.md](TEST-BUILDS.md)
+for scope and remaining runtime validation.

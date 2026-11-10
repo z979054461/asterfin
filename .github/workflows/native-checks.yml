@@ -20,13 +20,16 @@ jobs:
         with:
           persist-credentials: false
       - run: bash tests/native/danmaku-ios/run.sh
-  android-compile:
-    name: Android app and native module compilation
+  android-package:
+    name: Android unsigned test APK (not installable)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       EXPO_NO_TELEMETRY: "1"
       EXPO_TV: "0"
+      NODE_ENV: production
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      EXPO_PUBLIC_BUILD_PROFILE: ci-test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -39,7 +42,52 @@ jobs:
           distribution: temurin
           java-version: "17"
       - run: bun install --frozen-lockfile
+        env:
+          NODE_ENV: development
       - run: bunx expo prebuild --platform android --no-install
-      - name: Compile Android integration without packaging or publishing
+      # Release bundles Hermes/JS and native libraries so it can run without Metro.
+      # Expo's template defaults Release to the debug key. Explicitly remove both
+      # generated signing bindings, rather than using any development/release key.
+      - name: Disable generated Android signing
+        run: |
+          python3 - <<'PYUNSIGNED'
+          from pathlib import Path
+          gradle = Path("android/app/build.gradle")
+          source = gradle.read_text()
+          binding = "signingConfig signingConfigs.debug"
+          assert source.count(binding) == 2, "Unexpected signing template; inspect before building"
+          gradle.write_text(source.replace(binding, "signingConfig null"))
+          PYUNSIGNED
+      - name: Build unsigned ARM64 test APK without publishing
         working-directory: android
-        run: ./gradlew :app:compileDebugKotlin --no-daemon -PreactNativeArchitectures=arm64-v8a
+        run: ./gradlew :app:assembleRelease --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a
+      - name: Verify unsigned APK identity and packaged runtime
+        env:
+          APK: android/app/build/outputs/apk/release/app-release-unsigned.apk
+        run: |
+          set -euo pipefail
+          python3 - <<'PYAPK'
+          import hashlib, os, pathlib, subprocess, zipfile
+          apk = pathlib.Path(os.environ["APK"])
+          build_tools = pathlib.Path(os.environ["ANDROID_HOME"]) / "build-tools/35.0.0"
+          aapt = build_tools / "aapt"
+          signing = subprocess.run([str(build_tools / "apksigner"), "verify", "--verbose", str(apk)], text=True, capture_output=True)
+          assert signing.returncode == 1 and "DOES NOT VERIFY" in signing.stdout + signing.stderr, "APK must remain unsigned"
+          info = subprocess.check_output([str(aapt), "dump", "badging", str(apk)], text=True)
+          assert "package: name='org.personal.jellyfinmobile.dev'" in info, info
+          assert "application-debuggable" not in info, "Release APK is debuggable"
+          with zipfile.ZipFile(apk) as archive:
+              names = archive.namelist()
+              assert archive.getinfo("assets/index.android.bundle").file_size > 0
+              assert any(n.startswith("classes") and n.endswith(".dex") for n in names)
+              for library in ("libmpv.so", "libhermesvm.so", "libreactnative.so"):
+                  assert "lib/arm64-v8a/" + library in names, library
+              abis = sorted({n.split("/")[1] for n in names if n.startswith("lib/") and n.endswith(".so")})
+              assert "arm64-v8a" in abis
+          digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+          print(f"APK verified: {apk.name}; {apk.stat().st_size} bytes; ABIs: {abis}; SHA256: {digest}")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write(f"### Android test build\n\nCommit: `{os.environ['GITHUB_SHA']}`\n\n")
+              out.write(f"Unsigned Release APK built and package checks passed. SHA256: `{digest}`.\n\n")
+              out.write("No signing key was used. The unsigned APK cannot be installed. No emulator, physical device, server, playback, or danmaku integration test has run. No APK is uploaded or released.\n")
+          PYAPK

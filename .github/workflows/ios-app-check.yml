@@ -1,0 +1,126 @@
+name: iOS full app compile check
+
+on:
+  push:
+    branches: [mobile-dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-app-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unsigned-device-build:
+    name: iOS arm64 Release app (unsigned, not installable)
+    if: github.ref == 'refs/heads/mobile-dev'
+    runs-on: macos-26
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "1"
+      EXPO_TV: "0"
+      EXPO_NO_TELEMETRY: "1"
+      NODE_ENV: production
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      COCOAPODS_DISABLE_STATS: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: "1.4.2"
+
+      # Match the upstream native toolchain, rather than silently selecting an
+      # older SDK that compiles away the iOS 26 background-download features.
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.6"
+
+      - name: Check runner toolchain
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          node --version
+          bun --version
+          ruby --version
+          pod --version
+          node -e 'if (Number(process.versions.node.split(".")[0]) < 22) throw new Error("Node 22+ is required")'
+          ruby -e 'require "rubygems"; abort "CocoaPods 1.16.2+ is required" if Gem::Version.new(`pod --version`.strip) < Gem::Version.new("1.16.2")'
+
+      - name: Ensure Metal compiler is available
+        run: |
+          set -euo pipefail
+          bash scripts/ios/install-metal-toolchain.sh
+          # Some Xcode images expose a metal shim before the component exists.
+          if ! xcrun metal -v; then
+            xcodebuild -downloadComponent MetalToolchain
+            xcrun metal -v
+          fi
+
+      - name: Install locked JavaScript dependencies including build tools
+        # Bun treats NODE_ENV=production as --production, but prebuild and
+        # bundling require devDependencies (tsx, Babel, config-tv, etc.).
+        env:
+          NODE_ENV: development
+        run: bun install --frozen-lockfile
+
+      - name: Generate iOS app and extension without signing setup
+        run: |
+          set -euo pipefail
+          bunx expo prebuild --platform ios --no-install
+          printf 'export NODE_BINARY="%s"\n' "$(command -v node)" > ios/.xcode.env.local
+          test -f ios/JellyfinMobileDev.xcodeproj/xcshareddata/xcschemes/JellyfinMobileDev.xcscheme
+
+      - name: Resolve CocoaPods and native modules
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          pod install --repo-update
+          test -d JellyfinMobileDev.xcworkspace
+
+      - name: Build complete device app, JavaScript bundle and Live Activity
+        # A generic device build validates the arm64 native player without
+        # depending on a booted simulator or MPVKit simulator slices. Do not use
+        # the production helper: it also packages an IPA after building.
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -workspace ios/JellyfinMobileDev.xcworkspace \
+            -scheme JellyfinMobileDev \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/jellyfin-ios-derived-data" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            DEVELOPMENT_TEAM= \
+            build
+
+      - name: Verify actual app outputs, without exporting or uploading
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/jellyfin-ios-derived-data/Build/Products/Release-iphoneos/JellyfinMobileDev.app"
+          test -s "$app/JellyfinMobileDev"
+          test -s "$app/main.jsbundle"
+          test -s "$app/PlugIns/StreamyfinDownloadActivity.appex/StreamyfinDownloadActivity"
+          bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")
+          test "$bundle_id" = 'org.personal.jellyfinmobile.dev'
+          xcrun lipo -verify_arch arm64 "$app/JellyfinMobileDev"
+          {
+            echo '### iOS compile check passed'
+            echo 'The complete arm64 Release app, bundled JavaScript and Live Activity extension were built without Apple credentials.'
+            echo 'This is not a signed/installable package or a playback/device test. No IPA, app binary or release was uploaded.'
+            echo "Commit: $GITHUB_SHA"
+            xcodebuild -version
+          } >> "$GITHUB_STEP_SUMMARY"
