@@ -1,5 +1,5 @@
 name: "🐛 Bug Report"
-description: Report a problem in the Jellyfin Mobile fork
+description: Report a problem in Asterfin
 title: "[Bug]: "
 labels:
   - "🐛 bug"
@@ -14,7 +14,7 @@ body:
     id: version
     attributes:
       label: Build or commit
-      description: Include the Jellyfin Mobile branch and commit you tested.
+      description: Include the Asterfin branch and commit you tested.
     validations:
       required: true
   - type: textarea
