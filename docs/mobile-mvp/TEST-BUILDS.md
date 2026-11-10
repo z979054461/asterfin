@@ -49,7 +49,10 @@ whether the supplied password is valid; a strength recommendation is not a forma
 Before emitting certificate information, it accepts only three built-in neutral
 CN-only templates and checks issuer, alternative names, and extension types. A
 non-matching certificate is marked for identity review; this does not establish
-that it contains personal information and does not require changing the key. A temporary
+that it contains personal information and does not require changing the key.
+Fixed boolean diagnostics distinguish subject-template matching, issuer matching,
+supported extension types, and absence of alternative names. They never include
+the field values. An unresolved identity check continues to block acceptance. A temporary
 in-memory signature proof checks that the private key matches the certificate.
 Only fixed pass/failure messages and the validated certificate's public SHA-256
 fingerprint are logged. Passwords, encoded keystores, and certificate subjects

@@ -96,13 +96,24 @@ jobs:
                     )
                 except (OSError, subprocess.TimeoutExpired):
                     fail("Isolated verifier could not complete; no diagnostic contents are logged.")
+            diagnostic_pattern = r"CHECK_SUBJECT_TEMPLATE=(true|false)\nCHECK_ISSUER_MATCH=(true|false)\nCHECK_EXTENSION_TYPES=(true|false)\nCHECK_NO_ALT_NAMES=(true|false)\n"
+            diagnostics = re.match(diagnostic_pattern, result.stdout)
+            remaining_output = result.stdout[diagnostics.end():] if diagnostics else result.stdout
+            if remaining_output and not re.fullmatch(r"CERT_SHA256=[0-9a-f]{64}\n", remaining_output):
+                fail("Unexpected verifier output; diagnostic contents suppressed.")
+            if diagnostics:
+                labels = ("subject_template_matches", "issuer_matches_subject", "extension_types_supported", "alternative_names_absent")
+                for label, value in zip(labels, diagnostics.groups()):
+                    print("Certificate check: " + label + "=" + value)
             if result.returncode != 0:
                 # Only permit the verifier's fixed failure stages, never arbitrary Java diagnostics.
                 stage = re.fullmatch(r"Signing preflight failed at ([a-z-]+)\. No secret or certificate identity is included in this message\.\n", result.stderr)
                 if stage and stage[1] in {"input", "keystore-unlock", "alias-and-entry", "certificate-identity-review", "certificate-validity", "private-key-unlock", "private-key-certificate-match"}:
                     fail("Signing preflight failed: " + stage[1] + ". Secret values and certificate identity were not logged.")
                 fail("Signing preflight failed in the isolated verifier. No diagnostic contents are logged.")
-            fingerprint = re.fullmatch(r"CERT_SHA256=([0-9a-f]{64})\n", result.stdout)
+            if not diagnostics or any(value != "true" for value in diagnostics.groups()):
+                fail("Certificate identity requires review; no certificate identity values are logged.")
+            fingerprint = re.fullmatch(r"CERT_SHA256=([0-9a-f]{64})\n", remaining_output)
             if not fingerprint:
                 fail("Unexpected verifier output; output suppressed.")
             print("PASS: PKCS12 format, passwords, alias, private key, generic certificate identity, and key/certificate match.")
@@ -176,13 +187,19 @@ jobs:
                     require(chain != null && chain.length == 1 && chain[0] instanceof X509Certificate);
                     X509Certificate certificate = (X509Certificate) chain[0];
                     stage = "certificate-identity-review";
-                    require(genericSubject(certificate.getSubjectX500Principal()));
-                    require(certificate.getIssuerX500Principal().equals(certificate.getSubjectX500Principal()));
+                    boolean subjectMatches = genericSubject(certificate.getSubjectX500Principal());
+                    boolean issuerMatches = certificate.getIssuerX500Principal().equals(certificate.getSubjectX500Principal());
                     Set<String> extensions = new HashSet<>();
                     if (certificate.getCriticalExtensionOIDs() != null) extensions.addAll(certificate.getCriticalExtensionOIDs());
                     if (certificate.getNonCriticalExtensionOIDs() != null) extensions.addAll(certificate.getNonCriticalExtensionOIDs());
-                    require(TECHNICAL_EXTENSIONS.containsAll(extensions));
-                    require(certificate.getSubjectAlternativeNames() == null && certificate.getIssuerAlternativeNames() == null);
+                    boolean extensionsSupported = TECHNICAL_EXTENSIONS.containsAll(extensions);
+                    boolean alternativeNamesAbsent = certificate.getSubjectAlternativeNames() == null && certificate.getIssuerAlternativeNames() == null;
+                    // Fixed booleans only, never subject/issuer names, extension values, or keys.
+                    System.out.println("CHECK_SUBJECT_TEMPLATE=" + subjectMatches);
+                    System.out.println("CHECK_ISSUER_MATCH=" + issuerMatches);
+                    System.out.println("CHECK_EXTENSION_TYPES=" + extensionsSupported);
+                    System.out.println("CHECK_NO_ALT_NAMES=" + alternativeNamesAbsent);
+                    require(subjectMatches && issuerMatches && extensionsSupported && alternativeNamesAbsent);
                     stage = "certificate-validity";
                     certificate.checkValidity();
                     certificate.verify(certificate.getPublicKey());
