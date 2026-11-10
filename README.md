@@ -1,4 +1,6 @@
-# Jellyfin Mobile Dev
+# Asterfin
+
+Jellyfin 客户端 · Android / iOS · 基于 Streamyfin 的开源衍生项目。
 
 基于 [Streamyfin v0.55.2](https://github.com/streamyfin/streamyfin/releases/tag/v0.55.2) 的 Android / iOS 开源衍生客户端，先完善自托管 Jellyfin 的移动端观看与服务端 XML 弹幕。
 
@@ -14,6 +16,8 @@
 - 回移上游访问令牌日志修复，避免播放/下载/字幕 URL 和 Android 图片调试日志泄露令牌；最终二进制仍需检查。
 
 媒体库、搜索、继续观看、下一集、倍速、字幕、下载等沿用 Streamyfin 底座。首版弹幕范围限手机/平板的在线 Direct Play / Direct Stream；转码、直播、TV、离线弹幕、投屏与 PiP 弹幕暂不支持。整体视觉重设计和成就系统未做。
+
+品牌更名保留既有包名、URL scheme 和签名身份，避免影响安装升级。详见[品牌与兼容性](docs/mobile-mvp/BRANDING.md)。
 
 ## 开发与状态
 
@@ -38,11 +42,11 @@ CI 配置包含源码检查、macOS 上的 Swift 核心测试及 Android 集成�
 - 保留 [MPL-2.0](LICENSE.txt)、原始作者与第三方版权声明。新增独立弹幕代码按 MPL-2.0 提供；未复制其他 GPL TV 客户端的渲染代码。
 - **原生依赖另有 GPL 许可，不能把整个安装包描述为仅受 MPL 文件级义务约束。** 实际 iOS MPVKit av5 声明 GPL-3.0；Android 原生 AAR 的具体构成仍待最终制品核查。
 - [许可证预审与仓库方案](docs/mobile-mvp/LICENSE-AND-PRIVATE-REPO.md)说明确认范围与发布前待办。开源源码不自动满足二进制对应源码、版权通知或分发渠道全部要求。
-- 感谢 Streamyfin、Jellyfin、mpv、FFmpeg 及其依赖维护者。[上游 README 归档](docs/mobile-mvp/UPSTREAM-README.md)。名称和图标暂沿用开发底座资源，不表示官方背书；正式发布前继续整理品牌和资产许可。
+- 感谢 Streamyfin、Jellyfin、mpv、FFmpeg 及其依赖维护者。[上游 README 归档](docs/mobile-mvp/UPSTREAM-README.md)。应用名称为 Asterfin；图标暂沿用开发底座资源，不表示官方背书；正式发布前继续整理品牌和资产许可。
 
 ## English
 
-An experimental Android/iOS derivative of Streamyfin v0.55.2 focused on local rendering
+Asterfin is an experimental Android/iOS derivative of Streamyfin v0.55.2 focused on local rendering
 of existing Jellyfin-server XML danmaku. No third-party danmaku discovery is added.
 Existing library, playback, resume, next-episode and download functionality comes from
 Streamyfin. Both native and ordinary MPV paths are being integrated.

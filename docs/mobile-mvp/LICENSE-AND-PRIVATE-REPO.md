@@ -12,7 +12,7 @@
 
 ## 1. 本地来源与确切范围
 
-本地工作目录：`jellyfin-mobile`。核实开发基线为 `4917c6aad9fcbc08f2dfb075310f3e85182d780e`，对应标签 `v0.55.2`；恢复开发时将上游 remote 改名为 `upstream`（`https://github.com/streamyfin/streamyfin.git`），`origin` 改为获授权的 `https://github.com/z979054461/jellyfin-mobile.git`。开发增量放在独立 `mobile-dev` 分支，保留 `develop` 原样。
+本地工作目录：`jellyfin-mobile`。核实开发基线为 `4917c6aad9fcbc08f2dfb075310f3e85182d780e`，对应标签 `v0.55.2`；恢复开发时将上游 remote 改名为 `upstream`（`https://github.com/streamyfin/streamyfin.git`），`origin` 改为获授权的 `https://github.com/z979054461/asterfin.git`。开发增量放在独立 `mobile-dev` 分支，保留 `develop` 原样。
 
 依据：本地 `LICENSE.txt`、`app.json`、`modules/mpv-player/android/build.gradle`、`modules/mpv-player/ios/MpvPlayer.podspec` 和原生桥接文件；线上读取维护者仓库与官方许可材料。当前工作树可能另有开发改动，HEAD 只能标识上游基线，不能代替发布源码快照。
 

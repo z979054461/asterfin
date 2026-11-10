@@ -63,8 +63,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     config.plugins?.push([
       "expo-camera",
       {
-        cameraPermission:
-          "Allow Jellyfin Mobile Dev to access the camera to scan QR codes for TV login.",
+        cameraPermission: `Allow ${config.name} to access the camera to scan QR codes for TV login.`,
       },
     ]);
   }

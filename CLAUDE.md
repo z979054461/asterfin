@@ -278,7 +278,8 @@ MPV module's `Danmaku`/`danmaku` directory own transport, parsing, layout and
 media-time rendering. Both presentation paths are wired. Chinese fork strings
 live outside Crowdin-managed catalogues in `utils/danmaku/zh.ts`.
 
-Build identity is temporary (`Jellyfin Mobile Dev`), separate from upstream.
+The display name is `Asterfin`, separate from upstream. Package identifiers,
+URL scheme and signing identity remain stable across branding changes.
 Upstream signing, EAS updates/push identity and crash reporting are not reused.
 Do not publish, access a personal server/device, or initiate a signed cloud
 build without the owner's authorization. See the delivery notes for checks

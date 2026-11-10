@@ -24,6 +24,7 @@ import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { QuickConnectCodeModal } from "@/components/login/QuickConnectCodeModal";
 import { PreviousServersList } from "@/components/PreviousServersList";
 import { CustomHeaderSheet } from "@/components/settings/CustomHeaderSheet";
+import { APP_DISPLAY_NAME } from "@/constants/Branding";
 import { Colors } from "@/constants/Colors";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import {
@@ -406,7 +407,7 @@ export const Login: React.FC = () => {
                 }}
                 source={require("@/assets/images/icon-ios-plain.png")}
               />
-              <Text className='text-3xl font-bold'>Streamyfin</Text>
+              <Text className='text-3xl font-bold'>{APP_DISPLAY_NAME}</Text>
               <Text className='text-neutral-500'>
                 {t("server.enter_url_to_jellyfin_server")}
               </Text>

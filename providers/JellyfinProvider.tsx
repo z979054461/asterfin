@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
+import { APP_DISPLAY_NAME } from "@/constants/Branding";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
@@ -97,7 +98,7 @@ const initialApi = (() => {
       const id = getOrSetDeviceId();
       const deviceName = getDeviceNameSync();
       const jellyfinInstance = new Jellyfin({
-        clientInfo: { name: "Streamyfin", version: APP_VERSION },
+        clientInfo: { name: APP_DISPLAY_NAME, version: APP_VERSION },
         deviceInfo: {
           name: deviceName,
           id,
@@ -190,7 +191,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       const id = getOrSetDeviceId();
       const deviceName = getDeviceNameSync();
       return new Jellyfin({
-        clientInfo: { name: "Streamyfin", version: APP_VERSION },
+        clientInfo: { name: APP_DISPLAY_NAME, version: APP_VERSION },
         deviceInfo: {
           name: deviceName,
           id,
@@ -362,7 +363,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const headers = useMemo(() => {
     if (!deviceId) return {};
     return {
-      authorization: `MediaBrowser Client="Streamyfin", Device=${
+      authorization: `MediaBrowser Client="${APP_DISPLAY_NAME}", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
       }, DeviceId="${deviceId}", Version="${APP_VERSION}"`,
     };

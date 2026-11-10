@@ -77,14 +77,14 @@ jobs:
           set -euo pipefail
           bunx expo prebuild --platform ios --no-install
           printf 'export NODE_BINARY="%s"\n' "$(command -v node)" > ios/.xcode.env.local
-          test -f ios/JellyfinMobileDev.xcodeproj/xcshareddata/xcschemes/JellyfinMobileDev.xcscheme
+          test -f ios/Asterfin.xcodeproj/xcshareddata/xcschemes/Asterfin.xcscheme
 
       - name: Resolve CocoaPods and native modules
         working-directory: ios
         run: |
           set -euo pipefail
           pod install --repo-update
-          test -d JellyfinMobileDev.xcworkspace
+          test -d Asterfin.xcworkspace
 
       - name: Build complete device app, JavaScript bundle and Live Activity
         # A generic device build validates the arm64 native player without
@@ -95,8 +95,8 @@ jobs:
           build_log="$RUNNER_TEMP/jellyfin-ios-build.log"
           set +e
           xcodebuild \
-            -workspace ios/JellyfinMobileDev.xcworkspace \
-            -scheme JellyfinMobileDev \
+            -workspace ios/Asterfin.xcworkspace \
+            -scheme Asterfin \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
@@ -124,13 +124,13 @@ jobs:
       - name: Verify actual app outputs, without exporting or uploading
         run: |
           set -euxo pipefail
-          app="$RUNNER_TEMP/jellyfin-ios-derived-data/Build/Products/Release-iphoneos/JellyfinMobileDev.app"
-          test -s "$app/JellyfinMobileDev"
+          app="$RUNNER_TEMP/jellyfin-ios-derived-data/Build/Products/Release-iphoneos/Asterfin.app"
+          test -s "$app/Asterfin"
           test -s "$app/main.jsbundle"
           test -s "$app/PlugIns/StreamyfinDownloadActivity.appex/StreamyfinDownloadActivity"
           bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")
           test "$bundle_id" = 'org.personal.jellyfinmobile.dev'
-          xcrun lipo "$app/JellyfinMobileDev" -verify_arch arm64
+          xcrun lipo "$app/Asterfin" -verify_arch arm64
           {
             echo '### iOS compile check passed'
             echo 'The complete arm64 Release app, bundled JavaScript and Live Activity extension were built without Apple credentials.'

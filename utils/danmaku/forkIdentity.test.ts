@@ -7,7 +7,10 @@ import { danmakuZh } from "./zh";
 
 it("keeps the personal build separate from upstream signing and services", () => {
   const config = app.expo;
-  expect(config.name).toBe("Jellyfin Mobile Dev");
+  expect(config.name).toBe("Asterfin");
+  expect(config.ios.bundleIdentifier).toBe("org.personal.jellyfinmobile.dev");
+  expect(config.slug).toBe("jellyfin-mobile-dev");
+  expect(config.scheme).toBe("jellyfin-mobile-dev");
   expect(config.ios.bundleIdentifier).toBe(config.android.package);
   expect(config.ios.bundleIdentifier).not.toContain("fredrikburmester");
   expect(config.ios).not.toHaveProperty("appleTeamId");
@@ -37,4 +40,46 @@ it("keeps the renamed iOS download keeper aligned with its bundle", () => {
   expect(source).not.toContain(
     'taskIdentifier = "com.fredrikburmester.streamyfin.downloads"',
   );
+});
+
+it("keeps the renamed app and its iOS compile workflow aligned", () => {
+  const workflow = fs.readFileSync(
+    path.join(__dirname, "../../.github/workflows/ios-app-check.yml"),
+    "utf8",
+  );
+  expect(workflow).toContain("ios/Asterfin.xcworkspace");
+  expect(workflow).toContain("-scheme Asterfin");
+  expect(workflow).toContain("Release-iphoneos/Asterfin.app");
+  expect(workflow).not.toContain("JellyfinMobileDev");
+});
+
+it("keeps signing scoped to the same repository across its rename", () => {
+  const workflow = fs.readFileSync(
+    path.join(
+      __dirname,
+      "../../.github/workflows/android-signing-preflight.yml",
+    ),
+    "utf8",
+  );
+  expect(workflow).toContain("github.repository_id == '1451291617'");
+  expect(workflow).toContain("github.ref == 'refs/heads/mobile-dev'");
+  expect(workflow).toContain(
+    'private static final String ALIAS = "jellyfin-mobile-dev"',
+  );
+  expect(workflow).not.toContain("z979054461/jellyfin-mobile");
+});
+
+it("does not identify the fork as the upstream client or app-store release", () => {
+  const provider = fs.readFileSync(
+    path.join(__dirname, "../../providers/JellyfinProvider.tsx"),
+    "utf8",
+  );
+  expect(provider).toContain(`Client="\${APP_DISPLAY_NAME}"`);
+  expect(provider).not.toContain('Client="Streamyfin"');
+  const capabilities = fs.readFileSync(
+    path.join(__dirname, "../../providers/WebSocketProvider.tsx"),
+    "utf8",
+  );
+  expect(capabilities).not.toContain("id6593660679");
+  expect(capabilities).not.toContain("streamyfin-client-badge.png");
 });

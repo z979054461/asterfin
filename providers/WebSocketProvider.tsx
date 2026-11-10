@@ -391,10 +391,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       try {
         await getSessionApi(api).postFullCapabilities({
           clientCapabilitiesDto: {
-            AppStoreUrl:
-              "https://apps.apple.com/us/app/streamyfin/id6593660679",
-            IconUrl:
-              "https://raw.githubusercontent.com/streamyfin/streamyfin/refs/heads/develop/assets/images/streamyfin-client-badge.png",
+            // Do not advertise upstream's store listing or badge as this fork.
+            // Add Asterfin URLs only after its own distribution assets exist.
             PlayableMediaTypes: ["Audio", "Video"],
             SupportedCommands: ["Play"],
             SupportsMediaControl: true,

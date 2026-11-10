@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
+import { APP_DISPLAY_NAME } from "@/constants/Branding";
 import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
@@ -79,7 +80,10 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
         <View className={Platform.isTV ? "py-5 space-y-4" : "py-4 space-y-6"}>
           <View>
             <Text className='text-3xl font-bold text-center mb-2'>
-              {t("home.intro.welcome_to_streamyfin")}
+              {t("home.intro.welcome_to_streamyfin").replace(
+                /streamyfin/gi,
+                APP_DISPLAY_NAME,
+              )}
             </Text>
             <Text className='text-center'>
               {t("home.intro.a_free_and_open_source_client_for_jellyfin")}

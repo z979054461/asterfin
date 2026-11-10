@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verify-credentials:
-    if: ${{ github.repository == 'z979054461/jellyfin-mobile' && github.ref == 'refs/heads/mobile-dev' }}
+    if: ${{ github.repository_id == '1451291617' && github.ref == 'refs/heads/mobile-dev' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

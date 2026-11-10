@@ -58,8 +58,8 @@
 
 源码快照已推送到独立 `mobile-dev` 分支，提交 `c9d785ea3b2fad8a25f85c9d310832732057010f`；`develop` 未改动。
 
-- [源码检查](https://github.com/z979054461/jellyfin-mobile/actions/runs/42740288603)通过：155 suites / 1975 tests、TypeScript、Biome、i18n、Java 核心 257 条与 iOS 静态 19 条断言。Expo Doctor 仍为 18/20；该步骤允许失败，因此绿色工作流不代表 Doctor 无告警。
-- [原生检查](https://github.com/z979054461/jellyfin-mobile/actions/runs/42740288686)中，macOS 首次编译并运行 Swift 生产核心，53 条断言通过。该测试未编译 UIKit/Expo/MPVKit App，也没有运行模拟器或真机。
+- [源码检查](https://github.com/z979054461/asterfin/actions/runs/42740288603)通过：155 suites / 1975 tests、TypeScript、Biome、i18n、Java 核心 257 条与 iOS 静态 19 条断言。Expo Doctor 仍为 18/20；该步骤允许失败，因此绿色工作流不代表 Doctor 无告警。
+- [原生检查](https://github.com/z979054461/asterfin/actions/runs/42740288686)中，macOS 首次编译并运行 Swift 生产核心，53 条断言通过。该测试未编译 UIKit/Expo/MPVKit App，也没有运行模拟器或真机。
 - Android 预生成成功，但编译停在 `:app:checkDebugAarMetadata`：Cast 插件默认 `+` 拉入 Cast 23 / MediaRouter 1.9.0-beta01，要求 API 37 与 AGP 9.1，而当前基线使用 API 36 / AGP 8.12。
 - 后续修复通过插件正式配置项将 Cast SDK 固定为 22.3.1，避免动态升级越过工具链兼容边界。新增配置回归测试在修复前失败；整机编译结果以修复提交的 Actions 为准，不能把依赖固定当作已构建通过。
 
@@ -68,26 +68,26 @@
 ## Complete test-build checks · 2026-11-10
 
 The Cast SDK fix at `df6aad89dd75cf0434bb2598a27cd88e8bfcfbbd` passed
-[source CI](https://github.com/z979054461/jellyfin-mobile/actions/runs/42742932347)
-and [native CI](https://github.com/z979054461/jellyfin-mobile/actions/runs/42742932544).
+[source CI](https://github.com/z979054461/asterfin/actions/runs/42742932347)
+and [native CI](https://github.com/z979054461/asterfin/actions/runs/42742932544).
 The latter compiled the Android app and its native modules with
 `:app:compileDebugKotlin`, and ran the Swift production core. It did not package
 an APK or compile the complete iOS app.
 
 The complete-build workflow commit is `405c392f642e756650413345157fb34fb2b93288`.
-Its [source checks](https://github.com/z979054461/jellyfin-mobile/actions/runs/42746414029)
+Its [source checks](https://github.com/z979054461/asterfin/actions/runs/42746414029)
 passed: 155 suites / 1976 tests, TypeScript, Biome, i18n, Java core 257 assertions
 and iOS static 19 assertions. Expo Doctor remains 18/20 (the existing unmaintained
 edge-to-edge package warning and 19 SDK patch-version suggestions). The separate
 Swift production core job passed 53 assertions.
 
-- [Android full build](https://github.com/z979054461/jellyfin-mobile/actions/runs/42746414121)
+- [Android full build](https://github.com/z979054461/asterfin/actions/runs/42746414121)
   passed in 18m51s. It generated an unsigned ARM64 Release APK of 109,601,527 bytes.
   Development package identity, non-debuggable manifest, bundled JavaScript,
   DEX, MPV/Hermes/React Native libraries, and unsigned status were checked.
   SHA256: `f68a21f6451227da9fb78fe0e4ef02bf67a35f4b56cedbf14b19d24b70aa1a45`.
   This APK cannot be installed without separately authorized signing.
-- [iOS full build](https://github.com/z979054461/jellyfin-mobile/actions/runs/42746414626)
+- [iOS full build](https://github.com/z979054461/asterfin/actions/runs/42746414626)
   passed Xcode 26.6 / Metal setup, CocoaPods, and the complete unsigned arm64
   Release app compilation step (16m37s). The final output-verification step failed,
   so the workflow is not a full pass. Review found an independently invalid `lipo`

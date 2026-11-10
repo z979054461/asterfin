@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { Text } from "@/components/common/Text";
+import { APP_DISPLAY_NAME } from "@/constants/Branding";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import type { SavedServer } from "@/utils/secureCredentials";
@@ -87,7 +88,7 @@ export const TVServerSelectionScreen: React.FC<
             marginBottom: scaleSize(8),
           }}
         >
-          Streamyfin
+          {APP_DISPLAY_NAME}
         </Text>
         <Text
           style={{
