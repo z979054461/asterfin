@@ -12,9 +12,11 @@ import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import { DANMAKU_DEFAULTS } from "@/constants/Danmaku";
 import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import type { DanmakuSettings } from "@/utils/danmaku/config";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
   PLUGIN_SETTINGS_KEY,
@@ -398,6 +400,7 @@ export type HomeHeroSection = "continueWatching" | "nextUp" | "recentlyAdded";
 export type HomeHeroMediaType = "movie" | "tv";
 
 export type Settings = {
+  danmaku?: DanmakuSettings;
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
@@ -597,6 +600,7 @@ const withoutSignIns = (
 };
 
 export const defaultValues: Settings = {
+  danmaku: { ...DANMAKU_DEFAULTS },
   home: null,
   deviceProfile: "Expo",
   mediaListCollectionIds: [],
@@ -714,8 +718,8 @@ export const defaultValues: Settings = {
   openSubtitlesEnabled: true,
   // TV-only: Inactivity timeout (disabled by default)
   inactivityTimeout: InactivityTimeout.Disabled,
-  // Crash reporting defaults on; the intro sheet and settings expose the opt-out
-  sentryEnabled: true,
+  // Personal build: opt in only after configuring your own reporting project.
+  sentryEnabled: false,
 };
 
 type LegacySubtitleSettings = Partial<Settings> & {

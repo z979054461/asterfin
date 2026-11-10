@@ -1,5 +1,6 @@
 import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DanmakuSettings } from "@/components/settings/DanmakuSettings";
 import { GestureControls } from "@/components/settings/GestureControls";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
@@ -27,6 +28,7 @@ export default function PlaybackControlsPage() {
       >
         <View>
           <VideoPlayerSelector className='mb-4' />
+          <DanmakuSettings />
           <MediaProvider>
             <MediaToggles className='mb-4' />
             <GestureControls className='mb-4' />

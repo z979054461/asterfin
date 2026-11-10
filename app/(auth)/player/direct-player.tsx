@@ -37,6 +37,7 @@ import { Controls } from "@/components/video-player/controls/Controls";
 import { Controls as TVControls } from "@/components/video-player/controls/Controls.tv";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
+import { DanmakuButton } from "@/components/video-player/controls/DanmakuButton";
 import {
   useAutoSubtitlesOnMute,
   useMuteState,
@@ -62,6 +63,7 @@ import {
   type MpvPlayerViewRef,
   type MpvVideoSource,
 } from "@/modules";
+import type { DanmakuStatus } from "@/modules/mpv-player/src/Danmaku.types";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useInactivity } from "@/providers/InactivityProvider";
@@ -69,7 +71,15 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
-import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import {
+  getJellyfinHeaders,
+  getJellyfinHeadersForUrl,
+} from "@/utils/customHeaders";
+import {
+  buildDanmakuConfig,
+  normalizeDanmakuSettings,
+} from "@/utils/danmaku/config";
+import { buildDanmakuLabels } from "@/utils/danmaku/strings";
 import {
   isPlaceholderTick,
   resolveSessionPositionTicks,
@@ -111,6 +121,8 @@ import { generateDeviceProfile } from "../../../utils/profiles/native";
 // this file, Expo Router turns everything under app/ into a route.
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
+  const [danmakuStatus, setDanmakuStatus] = useState<DanmakuStatus>("loading");
+  const [danmakuRetryKey, setDanmakuRetryKey] = useState(0);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
@@ -1480,6 +1492,40 @@ export default function DirectPlayerPage() {
     return getPlayMethod(stream, offline);
   }, [stream, offline]);
 
+  const danmakuConfig = useMemo(
+    () =>
+      buildDanmakuConfig({
+        serverUrl: api?.basePath,
+        accessToken: api?.accessToken,
+        userId: user?.Id,
+        itemId: item?.Id,
+        itemType: item?.Type,
+        offline,
+        isTV: Platform.isTV,
+        playMethod,
+        customHeaders: getJellyfinHeaders(api?.basePath),
+        settings: settings.danmaku,
+        labels: buildDanmakuLabels(t),
+      }),
+    [
+      api,
+      user?.Id,
+      item?.Id,
+      item?.Type,
+      offline,
+      playMethod,
+      settings.danmaku,
+      t,
+    ],
+  );
+  const danmakuConfigJson = useMemo(
+    () =>
+      danmakuConfig
+        ? JSON.stringify({ ...danmakuConfig, retryKey: danmakuRetryKey })
+        : "",
+    [danmakuConfig, danmakuRetryKey],
+  );
+
   // Extract transcode reasons from the TranscodingUrl
   const transcodeReasons = useMemo<string[]>(
     () => parseTranscodeReasons(stream?.mediaSource?.TranscodingUrl),
@@ -1765,6 +1811,10 @@ export default function DirectPlayerPage() {
               <VideoPlayerView
                 ref={videoRef}
                 source={videoSource}
+                danmakuConfigJson={danmakuConfigJson}
+                onDanmakuStatus={(event) =>
+                  setDanmakuStatus(event.nativeEvent.status)
+                }
                 style={{ width: "100%", height: "100%" }}
                 nowPlayingMetadata={nowPlayingMetadata}
                 onProgress={onProgress}
@@ -1875,6 +1925,25 @@ export default function DirectPlayerPage() {
                 />
               ) : (
                 <Controls
+                  danmakuControl={
+                    <DanmakuButton
+                      available={!!danmakuConfig}
+                      enabled={danmakuConfig?.enabled ?? false}
+                      status={danmakuStatus}
+                      onToggle={() =>
+                        updateSettings({
+                          danmaku: {
+                            ...normalizeDanmakuSettings(settings.danmaku),
+                            enabled: !danmakuConfig?.enabled,
+                          },
+                        })
+                      }
+                      onRetry={() => {
+                        setDanmakuStatus("loading");
+                        setDanmakuRetryKey((key) => key + 1);
+                      }}
+                    />
+                  }
                   mediaSource={stream?.mediaSource}
                   item={item}
                   togglePlay={togglePlay}

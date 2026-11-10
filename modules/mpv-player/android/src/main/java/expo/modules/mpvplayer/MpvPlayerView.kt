@@ -48,12 +48,24 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     // Event dispatchers
+    val onDanmakuStatus by EventDispatcher()
     val onLoad by EventDispatcher()
     val onPlaybackStateChange by EventDispatcher()
     val onProgress by EventDispatcher()
     val onError by EventDispatcher()
     val onTracksReady by EventDispatcher()
     val onPictureInPictureChange by EventDispatcher()
+
+    private val danmaku = expo.modules.mpvplayer.danmaku.DanmakuOverlay(context).apply {
+        clock = { renderer?.danmakuTime() }
+        showNativeControls = false
+        onStatus = { status, count -> onDanmakuStatus(mapOf("status" to status, "count" to count)) }
+    }
+    private var danmakuConfigJson: String? = null
+    fun setDanmakuConfigJson(json: String?) {
+        danmakuConfigJson = json
+        danmaku.configure(json)
+    }
 
     private var surfaceView: SurfaceView
     private var renderer: MPVLayerRenderer? = null
@@ -98,6 +110,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
         surfaceView.holder.addCallback(this@MpvPlayerView)
         addView(surfaceView)
+        addView(danmaku, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
         // Push dimension updates to mpv on every view bounds change. This
         // is the primary PiP black-screen fix: entering PiP fires a layout
@@ -132,6 +145,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
             override fun onPictureInPictureModeChanged(isInPiP: Boolean) {
                 isInPictureInPicture = isInPiP
+                danmaku.suspendOverlay(isInPiP)
                 if (isInPiP) {
                     renderer?.setSubtitleUseMargins(false)
                     renderer?.setSubtitleScaleWithWindow(false)
@@ -287,6 +301,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         currentLoop = config.loop
 
         renderer?.load(config)
+        // destroy() clears requests/cues but Expo need not resend unchanged
+        // props when reusing this view. Restore only after load invalidates clock.
+        danmaku.clear()
+        danmaku.configure(danmakuConfigJson)
 
         if (config.autoplay) {
             play()
@@ -332,6 +350,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      * decoder teardown finishes instead of briefly running two MPV instances.
      */
     fun destroy() {
+        danmaku.clear()
         renderer?.stop()
 
         // Reset view-level state so a subsequent loadVideo() on the SAME view
@@ -625,6 +644,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 // Playing-but-broken is filtered inside runResumeRecovery via
                 // the actual pipeline state, so healthy playback resumes with
                 // no reload.
+                danmaku.suspendOverlay(isInPictureInPicture)
                 if (currentUrl == null) return
                 if (pipController?.isPictureInPictureActive() == true) return
                 // Post past the resume/surfaceCreated race so the holder has a
@@ -634,6 +654,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             }
             override fun onActivityPaused(activity: Activity) {
                 if (activity === hostActivity) {
+                    danmaku.suspendOverlay(true)
                     Log.i(TAG, "[Recover] onActivityPaused — host paused")
                 }
             }
@@ -682,6 +703,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      * off the JS path.
      */
     fun cleanup() {
+        danmakuConfigJson = null
+        danmaku.clear()
         pipHandler.removeCallbacksAndMessages(null)
         unregisterLifecycleCallbacks()
         pipController?.stopPictureInPicture()

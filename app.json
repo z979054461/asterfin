@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Streamyfin",
-    "slug": "streamyfin",
-    "version": "0.55.2",
+    "name": "Jellyfin Mobile Dev",
+    "slug": "jellyfin-mobile-dev",
+    "version": "0.1.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
-    "scheme": "streamyfin",
+    "scheme": "jellyfin-mobile-dev",
     "userInterfaceStyle": "dark",
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -33,9 +33,8 @@
       "entitlements": {
         "com.apple.developer.networking.wifi-info": true
       },
-      "bundleIdentifier": "com.fredrikburmester.streamyfin",
-      "icon": "./assets/images/icon-ios-liquid-glass.icon",
-      "appleTeamId": "MWD5K362T8"
+      "bundleIdentifier": "org.personal.jellyfinmobile.dev",
+      "icon": "./assets/images/icon-ios-liquid-glass.icon"
     },
     "android": {
       "adaptiveIcon": {
@@ -43,15 +42,14 @@
         "monochromeImage": "./assets/images/icon-android-themed.png",
         "backgroundColor": "#2E2E2E"
       },
-      "package": "com.fredrikburmester.streamyfin",
+      "package": "org.personal.jellyfinmobile.dev",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WRITE_SETTINGS",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "blockedPermissions": ["android.permission.ACTIVITY_RECOGNITION"],
-      "googleServicesFile": "./google-services.json"
+      "blockedPermissions": ["android.permission.ACTIVITY_RECOGNITION"]
     },
     "plugins": [
       [
@@ -89,14 +87,6 @@
               "./assets/fonts/subtitles/NotoSansCJKsc-Regular.otf"
             ]
           }
-        }
-      ],
-      [
-        "@sentry/react-native/expo",
-        {
-          "organization": "streamyfin",
-          "project": "react-native",
-          "url": "https://sentry.io/"
         }
       ],
       "./plugins/withExcludeMedia3Dash.ts",
@@ -192,17 +182,13 @@
     "extra": {
       "router": {
         "origin": false
-      },
-      "eas": {
-        "projectId": "e79219d1-797f-4fbe-9fa1-cfd360690a68"
       }
     },
-    "owner": "streamyfin",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/e79219d1-797f-4fbe-9fa1-cfd360690a68"
+      "enabled": false
     }
   }
 }

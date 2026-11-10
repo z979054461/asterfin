@@ -13,18 +13,16 @@ const { expo } = JSON.parse(
 // this test keeps it in step with the identifiers the project really ships.
 // A fork that renames the app should leave the constant alone and point
 // EXPO_PUBLIC_SENTRY_DSN at its own project.
-describe("OFFICIAL_APPLICATION_IDS", () => {
-  test("holds the iOS and tvOS bundle identifier of app.json", () => {
-    expect(OFFICIAL_APPLICATION_IDS).toContain(expo.ios.bundleIdentifier);
+describe("OFFICIAL_APPLICATION_IDS in a personal fork", () => {
+  test("does not classify the personal iOS build as upstream", () => {
+    expect(OFFICIAL_APPLICATION_IDS).not.toContain(expo.ios.bundleIdentifier);
   });
-
-  test("holds the Android application id of app.json", () => {
-    expect(OFFICIAL_APPLICATION_IDS).toContain(expo.android.package);
+  test("does not classify the personal Android build as upstream", () => {
+    expect(OFFICIAL_APPLICATION_IDS).not.toContain(expo.android.package);
   });
-
-  test("holds nothing else", () => {
-    expect([...OFFICIAL_APPLICATION_IDS].sort()).toEqual(
-      [...new Set([expo.ios.bundleIdentifier, expo.android.package])].sort(),
-    );
+  test("retains the upstream identity for privacy classification", () => {
+    expect(OFFICIAL_APPLICATION_IDS).toEqual([
+      "com.fredrikburmester.streamyfin",
+    ]);
   });
 });

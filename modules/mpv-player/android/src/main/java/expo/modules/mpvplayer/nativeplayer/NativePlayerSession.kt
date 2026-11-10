@@ -71,6 +71,7 @@ class NativePlayerSession(
 
     private var hostActivity: Activity? = null
     private var overlayContainer: FrameLayout? = null
+    private var danmakuOverlay: expo.modules.mpvplayer.danmaku.DanmakuOverlay? = null
     private var surfaceView: SurfaceView? = null
     private var composeView: ComposeView? = null
     private var backCallback: OnBackPressedCallback? = null
@@ -277,6 +278,12 @@ class NativePlayerSession(
         sView.holder.addCallback(this)
         surfaceView = sView
         container.addView(sView)
+        if (!isTv && engine is expo.modules.mpvplayer.MPVLayerRenderer) {
+            danmakuOverlay = expo.modules.mpvplayer.danmaku.DanmakuOverlay(activity).apply {
+                clock = { (engine as? expo.modules.mpvplayer.MPVLayerRenderer)?.danmakuTime() }
+            }
+            container.addView(danmakuOverlay, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
 
         // Engine-provided layer (e.g. the Exo SubtitleView) sits between the
         // video surface and the chrome so cues render over video but under
@@ -338,6 +345,8 @@ class NativePlayerSession(
             }
         } else {
             cView.setContent {
+                val danmakuChromeVisible = viewModel.controlsVisible
+                androidx.compose.runtime.SideEffect { danmakuOverlay?.setControlsVisible(danmakuChromeVisible) }
                 PlayerTheme {
                     PlayerScreen(
                         viewModel = viewModel,
@@ -350,6 +359,11 @@ class NativePlayerSession(
         }
         composeView = cView
         container.addView(cView)
+        // Keep only the small controls strip above the gesture chrome; drawing stays below it.
+        danmakuOverlay?.let { overlay ->
+            overlay.removeView(overlay.controls)
+            container.addView(overlay.controls, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.TOP or android.view.Gravity.END).apply { topMargin = (56 * activity.resources.displayMetrics.density).toInt() })
+        }
 
         // Immersive full-screen window insets
         try {
@@ -460,13 +474,14 @@ class NativePlayerSession(
             override fun onActivityStarted(activity: Activity) {}
             override fun onActivityResumed(activity: Activity) {
                 if (activity !== hostActivity) return
+                danmakuOverlay?.suspendOverlay(viewModel.isPipActive)
                 if (!rendererStarted) return
                 // Post past the resume/surfaceCreated race so the holder has a
                 // valid surface, then check pipeline health.
                 mainHandler.removeCallbacks(recoverResumeRunnable)
                 mainHandler.postDelayed(recoverResumeRunnable, RESUME_RECOVERY_DELAY_MS)
             }
-            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityPaused(activity: Activity) { if(activity === hostActivity) danmakuOverlay?.suspendOverlay(true) }
             override fun onActivityStopped(activity: Activity) {}
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
@@ -511,6 +526,7 @@ class NativePlayerSession(
 
     private fun onPiPModeChanged(isInPiP: Boolean) {
         viewModel.isPipActive = isInPiP
+        danmakuOverlay?.suspendOverlay(isInPiP)
         if (isInPiP) {
             engine?.setSubtitleUseMargins(false)
             engine?.setSubtitleScaleWithWindow(false)
@@ -624,6 +640,8 @@ class NativePlayerSession(
         }
 
         engine?.load(loadConfig)
+        danmakuOverlay?.clear()
+        danmakuOverlay?.configure(if (config.stream.playMethod == "Transcode") null else config.danmaku?.let { org.json.JSONObject(it).toString() })
 
         // mpv's pause property is global and survives loadfile, and keep-open=
         // always leaves it paused at EOF — so a swap into the next episode
@@ -755,6 +773,8 @@ class NativePlayerSession(
             // Remove overlay container on main thread
             backCallback?.remove()
             backCallback = null
+            danmakuOverlay?.clear()
+            danmakuOverlay = null
             overlayContainer?.let { container ->
                 (container.parent as? ViewGroup)?.removeView(container)
             }
@@ -804,6 +824,8 @@ class NativePlayerSession(
             viewModel.willTeardown()
             backCallback?.remove()
             backCallback = null
+            danmakuOverlay?.clear()
+            danmakuOverlay = null
             overlayContainer?.let { container ->
                 (container.parent as? ViewGroup)?.removeView(container)
             }

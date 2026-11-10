@@ -171,6 +171,8 @@ final class NativePlayerViewController: UIViewController {
 		])
 		hosting.didMove(toParent: self)
 		hostingController = hosting
+        videoContainerView.addSubview(engine.danmakuOverlay)
+        engine.danmakuOverlay.attachControls(to: view)
 		#endif
 
 		#if os(iOS)
@@ -179,6 +181,7 @@ final class NativePlayerViewController: UIViewController {
 			.receive(on: DispatchQueue.main)
 			.sink { [weak self] visible in
 				guard let self else { return }
+                self.engine.danmakuOverlay.controlsVisible = visible
 				// Deprecated, and knowingly so: RN's required
 				// UIViewControllerBasedStatusBarAppearance=false disables
 				// prefersStatusBarHidden app-wide, so the app-level setter is
@@ -307,6 +310,9 @@ final class NativePlayerViewController: UIViewController {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		videoContainerView.frame = view.bounds
+        #if os(iOS)
+        engine.danmakuOverlay.frame = view.bounds
+        #endif
 		engine.displayLayer.frame = zoomAwareLayerFrame()
 		engine.displayLayer.contentsScale = view.window?.screen.scale ?? UIScreen.main.scale
 		engine.syncSubtitleLayerFrame()

@@ -181,6 +181,7 @@ struct UIOptionsRecord: Record {
 }
 
 struct PlayerPresentConfigRecord: Record {
+    @Field var danmaku: [String: Any]?
 	@Field var stream: StreamConfigRecord = StreamConfigRecord()
 	@Field var metadata: MetadataRecord?
 	/// Custom proxy auth headers for the thumbnails the player loads itself

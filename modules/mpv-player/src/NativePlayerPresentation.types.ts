@@ -1,3 +1,5 @@
+import type { DanmakuConfig } from "./Danmaku.types";
+
 /**
  * TS mirror of the native player presentation contract.
  * Swift side: modules/mpv-player/ios/NativePlayer/PlayerConfig.swift +
@@ -276,6 +278,7 @@ export type NativePlayerUIOptions = {
 export type NativePlayerEngine = "mpv" | "exoplayer";
 
 export type NativePlayerConfig = {
+  danmaku?: DanmakuConfig;
   stream: NativePlayerStreamConfig;
   metadata?: NativePlayerMetadata;
   /**

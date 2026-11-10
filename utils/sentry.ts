@@ -22,7 +22,8 @@ import { getVersionInfo } from "@/utils/version";
 // EXPO_PUBLIC_SENTRY_DSN overrides it (e.g. to point a fork at its own org).
 const PROJECT_SENTRY_DSN =
   "https://5c548edf47663532bb529ba72b2ddbb1@o4509610343596032.ingest.de.sentry.io/4509610370728016";
-const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? PROJECT_SENTRY_DSN;
+// A personal fork must not send crash reports to the upstream maintainer.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
 
 // Dev builds stay out of Sentry entirely. Their frames carry local absolute
 // paths — the developer's username and worktree layout — Metro reloads throw
@@ -140,15 +141,15 @@ let initialized = false;
 /**
  * Reads the crash-report preference straight from MMKV. This runs at app
  * startup, before Jotai hydrates settingsAtom, so it parses the persisted
- * blobs directly instead of going through useSettings. Reporting is on by
- * default; an explicit user opt-out — or a server admin lock — disables it.
+ * blobs directly instead of going through useSettings. This personal build
+ * reports only after explicit local opt-in; a server cannot grant consent.
  */
 const hasSentryConsent = (): boolean => {
   const lock = readStoredPluginSettings().sentryEnabled;
   if (lock?.locked === true) {
-    return lock.value === true;
+    if (lock.value !== true) return false;
   }
-  return readStoredSettings().sentryEnabled !== false;
+  return readStoredSettings().sentryEnabled === true;
 };
 
 // Media filenames are derived from titles ("Show S01E02.mp4", downloaded

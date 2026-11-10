@@ -91,6 +91,7 @@ Build and tooling:
 - `eas-archive-drops-gitignored-tracked-files` | EAS uploads skip anything matching .gitignore even if tracked; re-include required assets, keep asset require() at module scope
 - `bun-test-discovery-leaks-fds` | bare `bun test` leaves ~14k fds open; child processes spawned from tests get dead stdio, so do the work in-process
 - `require-hooks-leak-across-jest-specs` | a require hook (tsx/cjs) registered from a spec stays on the Jest worker's Node loader and breaks later specs; map it to a stub
+- `expo-image-prebuilt-glide-logs` | SDK 57's prebuilt expo-image AAR enables Glide URL logging, which can expose trickplay tokens; compile expo-image from source instead
 
 ## Project overview
 
@@ -267,3 +268,18 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - Some features are off on TV, notifications and Chromecast among them.
 - The rest of the TV rules, covering focus, modals, typography and lists, live in
   [docs/conventions/tv.md](docs/conventions/tv.md). Read it before touching TV code.
+
+## Personal mobile fork
+
+The mobile danmaku feature is documented in `docs/mobile-mvp/`. The original
+server, browsing, downloads and playback flows are retained. JS prepares
+scoped credentials and settings in `utils/danmaku/`; native engines under each
+MPV module's `Danmaku`/`danmaku` directory own transport, parsing, layout and
+media-time rendering. Both presentation paths are wired. Chinese fork strings
+live outside Crowdin-managed catalogues in `utils/danmaku/zh.ts`.
+
+Build identity is temporary (`Jellyfin Mobile Dev`), separate from upstream.
+Upstream signing, EAS updates/push identity and crash reporting are not reused.
+Do not publish, access a personal server/device, or initiate a signed cloud
+build without the owner's authorization. See the delivery notes for checks
+that were actually run and native verification still outstanding.

@@ -1,7 +1,7 @@
 /**
  * The application identifiers of the builds this project ships: the iOS and
- * tvOS bundle identifier and the Android application id, as app.json has them
- * (constants/Sentry.test.ts pins the two together).
+ * tvOS bundle identifier and the Android application id of upstream Streamyfin.
+ * The personal build intentionally stays outside this set.
  *
  * Written down here rather than read from the config at runtime on purpose: a
  * fork renames the app in app.json, so the embedded config of a fork's build

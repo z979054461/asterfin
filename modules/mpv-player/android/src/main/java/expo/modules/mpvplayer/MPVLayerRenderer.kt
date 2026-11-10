@@ -122,6 +122,20 @@ class MPVLayerRenderer(
     private var isMuted = false
 
     // Cached state
+    private val danmakuClock = expo.modules.mpvplayer.danmaku.DanmakuCore.Clock()
+    /** Actual mpv samples, never the seeded resume point or throttled JS clock. */
+    fun danmakuTime(): Double? = danmakuClock.position()
+    private fun invalidateDanmakuClock() { danmakuClock.invalidate() }
+    private fun sampleRestartedDanmakuClock() {
+        // Paused seeks may not produce another time-pos event. Read the actual
+        // renderer on its event thread and reject a concurrent load/seek/stop.
+        val epoch = danmakuClock.epoch()
+        val handle = mpv ?: return
+        val sample = handle.getPropertyDouble("time-pos")
+        val notSeeking = handle.getPropertyBoolean("seeking") == false
+        if (mpv === handle) danmakuClock.restart(epoch, sample, notSeeking)
+    }
+
     private var cachedPosition: Double = 0.0
     private var cachedDuration: Double = 0.0
     private var cachedCacheSeconds: Double = 0.0
@@ -390,6 +404,7 @@ class MPVLayerRenderer(
     }
 
     override fun stop() {
+        invalidateDanmakuClock()
         val pendingToken = pendingOwnershipToken
         val activeToken = activeOwnershipToken
         if (!isRunning && pendingToken == null && activeToken == null) return
@@ -642,6 +657,7 @@ class MPVLayerRenderer(
     }
     
     override fun load(config: VideoLoadConfig) {
+        val danmakuOperation = danmakuClock.requestLoad()
         val url = config.url
         currentUrl = url
         currentHeaders = config.headers
@@ -709,6 +725,8 @@ class MPVLayerRenderer(
             disableSubtitles()
         }
 
+        // Open the pending gate only at the actual command, after setup/stop.
+        danmakuClock.issue(danmakuOperation)
         // Load the file
         mpv?.command(arrayOf("loadfile", url, "replace"))
     }
@@ -771,14 +789,18 @@ class MPVLayerRenderer(
     }
     
     override fun seekTo(seconds: Double) {
+        val danmakuOperation = danmakuClock.requestSeek()
         val clamped = maxOf(0.0, seconds)
         cachedPosition = clamped
+        danmakuClock.issue(danmakuOperation)
         mpv?.command(arrayOf("seek", clamped.toString(), "absolute"))
     }
     
     override fun seekBy(seconds: Double) {
+        val danmakuOperation = danmakuClock.requestSeek()
         val newPosition = maxOf(0.0, cachedPosition + seconds)
         cachedPosition = newPosition
+        danmakuClock.issue(danmakuOperation)
         mpv?.command(arrayOf("seek", seconds.toString(), "relative"))
     }
     
@@ -1230,6 +1252,7 @@ class MPVLayerRenderer(
                 mainHandler.post { delegate?.onPositionChanged(cachedPosition, cachedDuration, cachedCacheSeconds) }
             }
             "time-pos" -> {
+                danmakuClock.sample(value, _isPaused || _isLoading)
                 cachedPosition = value
                 // Always update immediately when seeking, otherwise throttle to once per second
                 val now = System.currentTimeMillis()
@@ -1247,11 +1270,15 @@ class MPVLayerRenderer(
     
     override fun event(eventId: Int) {
         when (eventId) {
+            MPVLib.MPV_EVENT_START_FILE -> {
+                danmakuClock.startFile()
+            }
             MPVLib.MPV_EVENT_FILE_LOADED -> {
+                danmakuClock.ready()
                 // Add external subtitles now that file is loaded
                 if (pendingExternalSubtitles.isNotEmpty()) {
                     pendingExternalSubtitles.forEachIndexed { index, subUrl ->
-                        android.util.Log.d("MPVRenderer", "Adding external subtitle [$index]: $subUrl")
+                        android.util.Log.d("MPVRenderer", "Adding external subtitle [$index]: ${redactCredentials(subUrl)}")
                         // "auto" flag = add without auto-selecting (order preserved, MPVLib.command is sync)
                         mpv?.command(arrayOf("sub-add", subUrl, "auto"))
                     }
@@ -1285,6 +1312,7 @@ class MPVLayerRenderer(
                 }
             }
             MPVLib.MPV_EVENT_SEEK -> {
+                danmakuClock.seekBoundary()
                 // Seek started - show loading indicator and enable immediate progress updates
                 _isSeeking = true
                 if (!_isLoading) {
@@ -1293,6 +1321,7 @@ class MPVLayerRenderer(
                 }
             }
             MPVLib.MPV_EVENT_PLAYBACK_RESTART -> {
+                sampleRestartedDanmakuClock()
                 // Video playback has started/restarted (including after seek)
                 _isSeeking = false
                 if (_isLoading) {
@@ -1301,6 +1330,7 @@ class MPVLayerRenderer(
                 }
             }
             MPVLib.MPV_EVENT_END_FILE -> {
+                danmakuClock.endFile()
                 Log.i(TAG, "Playback ended (MPV_EVENT_END_FILE)")
                 val eof = mpv?.getPropertyBoolean("eof-reached") ?: false
                 if (eof) {

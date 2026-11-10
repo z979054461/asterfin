@@ -35,6 +35,7 @@ class MpvPlayerModule : Module() {
 
         // Enables the module to be used as a native view.
         View(MpvPlayerView::class) {
+            Prop("danmakuConfigJson") { view: MpvPlayerView, value: String? -> view.setDanmakuConfigJson(value) }
             // All video load options are passed via a single "source" prop
             Prop("source") { view: MpvPlayerView, source: Map<String, Any?>? ->
                 if (source == null) return@Prop
@@ -244,7 +245,7 @@ class MpvPlayerModule : Module() {
             }
 
             // Defines events that the view can send to JavaScript
-            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
+            Events("onDanmakuStatus", "onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
         }
     }
 }

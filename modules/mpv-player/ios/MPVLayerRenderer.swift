@@ -128,6 +128,9 @@ final class MPVLayerRenderer {
     private var pendingLoadGenerations: [UInt] = []
     private var activeLoadGeneration: UInt = 0
 
+    private let danmakuClock = DanmakuMediaClock()
+    func danmakuMediaTime() -> Double? { danmakuClock.sample() }
+
     // Progress update throttling - CRITICAL for performance!
     // DO NOT REMOVE THIS THROTTLE - it is essential for battery life and CPU efficiency.
     //
@@ -643,6 +646,7 @@ final class MPVLayerRenderer {
         demuxerMaxBackBytes: Int? = nil,
         loadGeneration: UInt
     ) {
+        let clockEpoch = danmakuClock.request(.load(loadGeneration))
         queue.async { [weak self] in
             guard let self else { return }
             // Assigned on the queue, not the caller's thread: these values are
@@ -715,6 +719,7 @@ final class MPVLayerRenderer {
             }
             let target = url.isFileURL ? url.path : url.absoluteString
             self.pendingLoadGenerations.append(loadGeneration)
+            self.danmakuClock.issued(clockEpoch)
             self.command(handle, ["loadfile", target, "replace"])
         }
     }
@@ -890,6 +895,7 @@ final class MPVLayerRenderer {
             if !pendingLoadGenerations.isEmpty {
                 activeLoadGeneration = pendingLoadGenerations.removeFirst()
             }
+            danmakuClock.boundary(.load(activeLoadGeneration))
 
         case MPV_EVENT_FILE_LOADED:
             // Add external subtitles now that the file is loaded
@@ -945,6 +951,7 @@ final class MPVLayerRenderer {
             detectHDRMode()
 
         case MPV_EVENT_SEEK:
+            danmakuClock.boundary(.seek)
             // Seek started - show loading indicator and enable immediate progress updates
             isSeeking = true
             if !isLoading {
@@ -956,6 +963,17 @@ final class MPVLayerRenderer {
             }
             
         case MPV_EVENT_PLAYBACK_RESTART:
+            // Capture before the property read; a main-thread load/seek can invalidate
+            // while libmpv is returning. A pending command/boundary has no read token.
+            if let token = danmakuClock.readToken(restart: true), let handle = mpv {
+                var rawTime = Double(0)
+                var seeking: Int32 = 1
+                if getProperty(handle: handle, name: "time-pos", format: MPV_FORMAT_DOUBLE, value: &rawTime) >= 0,
+                   getProperty(handle: handle, name: "seeking", format: MPV_FORMAT_FLAG, value: &seeking) >= 0,
+                   seeking == 0 {
+                    danmakuClock.commit(rawTime, token: token, restart: true)
+                }
+            }
             // Video playback has started/restarted (including after seek)
             isSeeking = false
             let generation = activeLoadGeneration
@@ -974,6 +992,7 @@ final class MPVLayerRenderer {
                 }
             }
         case MPV_EVENT_END_FILE:
+            danmakuClock.end()
             // Only a real EOF counts as "playback ended". The other reasons
             // (stop, quit, error, redirect) fire during teardown and stream
             // replacement, where an end event would incorrectly trigger the
@@ -1035,9 +1054,13 @@ final class MPVLayerRenderer {
                 }
             }
         case "time-pos":
+            let clockToken = danmakuClock.readToken(restart: false)
             var value = Double(0)
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_DOUBLE, value: &value)
             if status >= 0 {
+                if let token = clockToken, !isSeeking {
+                    danmakuClock.commit(value, token: token, restart: false)
+                }
                 cachedPosition = value
                 // Always update immediately when seeking, otherwise throttle to once per second
                 let now = CFAbsoluteTimeGetCurrent()
@@ -1209,11 +1232,13 @@ final class MPVLayerRenderer {
     }
     
     func seek(to seconds: Double) {
+        let clockEpoch = danmakuClock.request(.seek)
         guard mpv != nil else { return }
         let clamped = max(0, seconds)
         cachedPosition = clamped
         onQueue { [weak self] in
             guard let self, let handle = self.mpv else { return }
+            self.danmakuClock.issued(clockEpoch)
             self.commandSync(handle, ["seek", String(clamped), "absolute"])
         }
     }
@@ -1221,11 +1246,13 @@ final class MPVLayerRenderer {
 
 
     func seek(by seconds: Double) {
+        let clockEpoch = danmakuClock.request(.seek)
         guard mpv != nil else { return }
         let newPosition = max(0, cachedPosition + seconds)
         cachedPosition = newPosition
         onQueue { [weak self] in
             guard let self, let handle = self.mpv else { return }
+            self.danmakuClock.issued(clockEpoch)
             self.commandSync(handle, ["seek", String(seconds), "relative"])
         }
     }

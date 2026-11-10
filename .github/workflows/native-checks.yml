@@ -1,0 +1,45 @@
+name: Mobile native checks
+on:
+  push:
+    branches: [mobile-dev]
+  pull_request:
+    branches: [mobile-dev]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mobile-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  swift-core:
+    name: Swift production core tests (not an iOS app build)
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: bash tests/native/danmaku-ios/run.sh
+  android-compile:
+    name: Android app and native module compilation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_TV: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: "1.4.2"
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: bun install --frozen-lockfile
+      - run: bunx expo prebuild --platform android --no-install
+      - name: Compile Android integration without packaging or publishing
+        working-directory: android
+        run: ./gradlew :app:compileDebugKotlin --no-daemon -PreactNativeArchitectures=arm64-v8a

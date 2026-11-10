@@ -166,6 +166,7 @@ class UIOptionsRecord : Record {
 }
 
 class PlayerPresentConfigRecord : Record {
+    @Field var danmaku: Map<String, Any?>? = null
     @Field var stream: StreamConfigRecord = StreamConfigRecord()
     @Field var metadata: MetadataRecord? = null
     @Field var chapters: List<ChapterRecord> = emptyList()

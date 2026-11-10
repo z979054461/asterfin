@@ -1,6 +1,6 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { type FC, useCallback, useState } from "react";
+import { type FC, type ReactNode, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
@@ -16,6 +16,7 @@ import { type AspectRatio } from "./VideoScalingModeSelector";
 import { ZoomToggle } from "./ZoomToggle";
 
 interface HeaderControlsProps {
+  danmakuControl?: ReactNode;
   item: BaseItemDto;
   showControls: boolean;
   startPictureInPicture?: () => Promise<void>;
@@ -40,6 +41,7 @@ interface HeaderControlsProps {
 
 export const HeaderControls: FC<HeaderControlsProps> = ({
   item,
+  danmakuControl,
   showControls,
   startPictureInPicture,
   switchOnEpisodeMode,
@@ -108,7 +110,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       pointerEvents={showControls ? "auto" : "none"}
       className='flex flex-row justify-between'
     >
-      <View className='mr-auto' pointerEvents='box-none'>
+      <View className='mr-auto flex-row items-center' pointerEvents='box-none'>
         {shouldShowPlayerMenu({ isTV: Platform.isTV }) && (
           <View pointerEvents='auto'>
             <DropdownView
@@ -122,6 +124,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             />
           </View>
         )}
+        {danmakuControl}
       </View>
 
       <View className='flex flex-row items-center space-x-2'>

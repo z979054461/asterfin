@@ -1,0 +1,39 @@
+name: Mobile source checks
+on:
+  push:
+    branches: [main, mobile-dev]
+  pull_request:
+    branches: [main, mobile-dev]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mobile-source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source-checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: "1.4.2"
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test:unit --maxWorkers=2 --workerIdleMemoryLimit=512MB
+      - run: bun run check
+      - run: bun run i18n:check
+      - run: bash tests/native/danmaku-android/run.sh
+      - run: python3 tests/native/danmaku-ios/check-lifecycle-source.py
+      - name: Expo Doctor (known upstream maintenance warning)
+        continue-on-error: true
+        run: bun run doctor

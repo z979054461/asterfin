@@ -1,6 +1,7 @@
 import { getLocales } from "expo-localization";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import { danmakuZh } from "@/utils/danmaku/zh";
 import ar from "./translations/ar-SA.json";
 import ca from "./translations/ca-ES.json";
 import cs from "./translations/cs-CZ.json";
@@ -113,8 +114,8 @@ i18n.use(initReactI18next).init({
     uk: { translation: uk },
     vi: { translation: vi },
     // Devices report the "zh" macrolanguage; default it to Simplified.
-    zh: { translation: zhCN },
-    "zh-CN": { translation: zhCN },
+    zh: { translation: { ...zhCN, danmaku: danmakuZh } },
+    "zh-CN": { translation: { ...zhCN, danmaku: danmakuZh } },
     "zh-TW": { translation: zhTW },
   },
 

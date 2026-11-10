@@ -59,7 +59,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "expo-camera",
       {
         cameraPermission:
-          "Allow Streamyfin to access the camera to scan QR codes for TV login.",
+          "Allow Jellyfin Mobile Dev to access the camera to scan QR codes for TV login.",
       },
     ]);
   }
@@ -85,7 +85,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   config.extra = { ...config.extra, build: buildMeta };
 
   return {
-    ...(Object.keys(androidConfig).length > 0 && { android: androidConfig }),
     ...config,
+    android: { ...config.android, ...androidConfig },
   } as ExpoConfig;
 };

@@ -1,4 +1,5 @@
 import type { StyleProp, ViewStyle } from "react-native";
+import type { DanmakuStatus } from "./Danmaku.types";
 
 export type OnLoadEventPayload = {
   url: string;
@@ -82,6 +83,11 @@ export type VideoSource = {
 };
 
 export type MpvPlayerViewProps = {
+  /** JSON avoids Expo silently dropping nested optional native props. */
+  danmakuConfigJson?: string;
+  onDanmakuStatus?: (event: {
+    nativeEvent: { status: DanmakuStatus; count?: number };
+  }) => void;
   source?: VideoSource;
   style?: StyleProp<ViewStyle>;
   /** Metadata for iOS Control Center and Lock Screen now playing info */

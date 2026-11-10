@@ -49,6 +49,17 @@ final class MPVPlayerEngine: NSObject {
 	/// Hosts add this to their layer tree and update its frame on layout.
 	let displayLayer = AVSampleBufferDisplayLayer()
 
+    #if os(iOS)
+    private var existingDanmakuOverlay: DanmakuOverlay?
+    var danmakuOverlay: DanmakuOverlay {
+        if let overlay = existingDanmakuOverlay { return overlay }
+        let overlay = DanmakuOverlay(frame: .zero)
+        overlay.clock = { [weak self] in self?.renderer?.danmakuMediaTime() }
+        overlay.suppressed = { [weak self] in self?.isPictureInPictureActive() ?? true }
+        existingDanmakuOverlay = overlay
+        return overlay
+    }
+    #endif
 	private var renderer: MPVLayerRenderer?
 	private var pipController: PiPController?
 	private let nowPlayingManager = MPVNowPlayingManager.shared
@@ -227,6 +238,9 @@ final class MPVPlayerEngine: NSObject {
 		currentLoop = config.loop
 		loadGeneration &+= 1
 		let currentLoadGeneration = loadGeneration
+        #if os(iOS)
+        existingDanmakuOverlay?.reloadForMedia()
+        #endif
 		#if os(iOS)
 		hasRenderedFirstFrame = false
 		#endif
@@ -306,6 +320,9 @@ final class MPVPlayerEngine: NSObject {
 	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
 	 */
 	func destroy() {
+        #if os(iOS)
+        existingDanmakuOverlay?.suspendForReuse()
+        #endif
 		loadGeneration &+= 1
 		// Release the system's single inline auto-PiP slot now; deinit is deferred
 		// and would otherwise keep it claimed, blocking PiP for the next video.
@@ -355,6 +372,9 @@ final class MPVPlayerEngine: NSObject {
 	func shutdown() {
 		guard !isShutDown else { return }
 		isShutDown = true
+        #if os(iOS)
+        existingDanmakuOverlay?.stop()
+        #endif
 		setPictureInPictureAutoStartEnabled(false)
 		pipController?.stopPictureInPicture()
 		pipController = nil
@@ -760,6 +780,9 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did start = \(didStartPictureInPicture)", type: "Info")
+        #if os(iOS)
+        existingDanmakuOverlay?.refreshVisibility()
+        #endif
 		// Ensure current time is synced when PiP starts
 		pipController?.setCurrentTimeFromSeconds(cachedPosition)
 		// Notify the host of the actual PiP active state. `didStartPictureInPicture`
@@ -775,6 +798,9 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did stop", type: "Info")
+        #if os(iOS)
+        existingDanmakuOverlay?.refreshVisibility()
+        #endif
 		// Ensure timebase is synced after PiP ends
 		renderer?.syncTimebase()
 		pipController?.updatePlaybackState()

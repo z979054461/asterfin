@@ -15,6 +15,7 @@ import type {
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "@/modules/mpv-player";
+import type { DanmakuConfig } from "@/modules/mpv-player/src/Danmaku.types";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
 // module is absent from TV binaries and a top-level value import crashes on
 // launch (the type-only import above is erased at build time).
@@ -27,6 +28,7 @@ import {
   getJellyfinHeadersForUrl,
   hasHeaders,
 } from "@/utils/customHeaders";
+import { buildDanmakuConfig } from "@/utils/danmaku/config";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -384,6 +386,7 @@ export async function buildNativePlayerConfig(params: {
   req: PlayRequest;
   getDownloadedItemById: (id: string) => DownloadedItem | undefined;
   strings: NativePlayerStrings;
+  danmakuLabels?: DanmakuConfig["labels"];
   /** Skip the item refetch when the caller already has it (episode switch). */
   item?: BaseItemDto;
 }): Promise<{
@@ -505,6 +508,21 @@ export async function buildNativePlayerConfig(params: {
   }
 
   const config: NativePlayerConfig = {
+    danmaku: params.danmakuLabels
+      ? buildDanmakuConfig({
+          serverUrl: api?.basePath,
+          accessToken: api?.accessToken,
+          userId,
+          itemId: item.Id,
+          itemType: item.Type,
+          offline,
+          isTV: Platform.isTV,
+          playMethod,
+          customHeaders: getJellyfinHeaders(api?.basePath),
+          settings: settings.danmaku,
+          labels: params.danmakuLabels,
+        })
+      : undefined,
     stream: {
       url: stream.url,
       headers,

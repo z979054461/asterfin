@@ -7,6 +7,7 @@ import { useKeyEventListener } from "expo-key-event";
 import { useLocalSearchParams } from "expo-router";
 import {
   type FC,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -57,6 +58,7 @@ import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
 
 interface Props {
+  danmakuControl?: ReactNode;
   item: BaseItemDto;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
@@ -105,6 +107,7 @@ const HOLD_SPEED_DIM_CONFIG = {
 };
 
 export const Controls: FC<Props> = ({
+  danmakuControl,
   item,
   seek,
   startPictureInPicture,
@@ -709,6 +712,7 @@ export const Controls: FC<Props> = ({
             pointerEvents={showControls ? "auto" : "none"}
           >
             <HeaderControls
+              danmakuControl={danmakuControl}
               item={item}
               showControls={showControls}
               startPictureInPicture={startPictureInPicture}

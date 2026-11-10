@@ -149,6 +149,11 @@ final class NativePlayerSession {
 	private func startStream(config: PlayerPresentConfigRecord, force: Bool = false) {
 		guard let loadConfig = config.stream.toVideoLoadConfig() else { return }
 		engine.loadVideo(config: loadConfig, force: force)
+        #if os(iOS)
+        let danmakuData = config.danmaku.flatMap { try? JSONSerialization.data(withJSONObject: $0) }
+        let danmaku = danmakuData.flatMap { try? JSONDecoder().decode(DanmakuConfig.self, from: $0) }
+        engine.danmakuOverlay.configure(danmaku?.valid == true ? danmaku : nil)
+        #endif
 		engine.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
 		// Unconditional: mpv's speed property persists on the handle across
 		// loadfile, so an in-place swap from a 2× stream to a 1× config must

@@ -63,6 +63,7 @@ struct VideoLoadConfig {
 class MpvPlayerView: ExpoView {
 	private let engine = MPVPlayerEngine()
 	private var videoContainer: UIView!
+	let onDanmakuStatus = EventDispatcher()
 	let onLoad = EventDispatcher()
 	let onPlaybackStateChange = EventDispatcher()
 	let onProgress = EventDispatcher()
@@ -89,6 +90,13 @@ class MpvPlayerView: ExpoView {
 		engine.displayLayer.frame = bounds
 		engine.displayLayer.contentsScale = contentScaleFactor
 		videoContainer.layer.addSublayer(engine.displayLayer)
+        #if os(iOS)
+        engine.danmakuOverlay.nativeControls = false
+        engine.danmakuOverlay.onStatus = { [weak self] status, count in
+            self?.onDanmakuStatus(["status": status, "count": count])
+        }
+        videoContainer.addSubview(engine.danmakuOverlay)
+        #endif
 
 		NSLayoutConstraint.activate([
 			videoContainer.topAnchor.constraint(equalTo: topAnchor),
@@ -111,6 +119,9 @@ class MpvPlayerView: ExpoView {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		engine.displayLayer.frame = videoContainer.bounds
+        #if os(iOS)
+        engine.danmakuOverlay.frame = videoContainer.bounds
+        #endif
 		engine.displayLayer.contentsScale = contentScaleFactor
 		engine.displayLayer.isHidden = false
 		engine.displayLayer.opacity = 1.0
@@ -128,6 +139,11 @@ class MpvPlayerView: ExpoView {
 		engine.setNowPlayingMetadata(metadata, artworkHeaders: artworkHeaders)
 	}
 
+    func setDanmakuConfigJson(_ json: String) {
+        #if os(iOS)
+        engine.danmakuOverlay.configure(json: json)
+        #endif
+    }
 	func loadVideo(config: VideoLoadConfig) {
 		engine.loadVideo(config: config)
 	}

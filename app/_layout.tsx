@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 // Must stay above every other import: it runs the storage migrations.
 import "@/utils/bootstrap";
 import "@/augmentations";
@@ -407,14 +408,14 @@ function Layout() {
       await registerBackgroundFetchAsyncSessions();
     }
 
-    // only create push token for real devices (pointless for emulators)
-    if (Device.isDevice) {
+    // A fork has no push project until its owner explicitly configures one.
+    const pushProjectId = Constants.expoConfig?.extra?.eas?.projectId;
+    if (Device.isDevice && typeof pushProjectId === "string" && pushProjectId) {
       Notifications?.getExpoPushTokenAsync({
-        projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
+        projectId: pushProjectId,
       })
         .then((token: ExpoPushToken) => {
           if (token) {
-            console.log("Expo push token obtained:", token.data);
             setExpoPushToken(token);
           }
         })

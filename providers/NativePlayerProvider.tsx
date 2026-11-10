@@ -87,6 +87,7 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
+import { buildDanmakuLabels } from "@/utils/danmaku/strings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
@@ -664,6 +665,7 @@ const NativePlayerProviderInner: React.FC<{
         req,
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
+        danmakuLabels: buildDanmakuLabels(t),
         item: options.item,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
