@@ -65,8 +65,8 @@ jobs:
             password = values["ANDROID_KEYSTORE_PASSWORD"]
             if password != values["ANDROID_KEY_PASSWORD"]:
                 fail("This PKCS12 configuration expects matching store and key passwords; values are not logged.")
-            if len(password) < 16 or len(password) > 1024 or not password.isascii() or password != password.strip() or any(c in password for c in ("\r", "\n", "\x00")):
-                fail("Password format does not meet the agreed strong single-line ASCII requirements; its value is not logged.")
+            if any(c in password for c in ("\r", "\n", "\x00")):
+                fail("Password contains a line break or NUL; its value is not logged.")
             encoded = values["ANDROID_KEYSTORE_BASE64"]
             if len(encoded) >= 48000:
                 fail("Encoded keystore exceeds the supported size; no contents are logged.")
@@ -84,7 +84,7 @@ jobs:
                 secret_file = directory / "password.txt"
                 java_source = directory / "SigningPreflight.java"
                 keystore.write_bytes(encrypted_key)
-                secret_file.write_text(password, encoding="ascii")
+                secret_file.write_text(password, encoding="utf-8")
                 java_source.write_text(JAVA_SOURCE, encoding="utf-8")
                 encrypted_key = password = None
                 # All source is trusted inline workflow code, not repository/dependency code.
@@ -99,7 +99,7 @@ jobs:
             if result.returncode != 0:
                 # Only permit the verifier's fixed failure stages, never arbitrary Java diagnostics.
                 stage = re.fullmatch(r"Signing preflight failed at ([a-z-]+)\. No secret or certificate identity is included in this message\.\n", result.stderr)
-                if stage and stage[1] in {"input", "keystore-unlock", "alias-and-entry", "certificate-privacy", "certificate-validity", "private-key-unlock", "private-key-certificate-match"}:
+                if stage and stage[1] in {"input", "keystore-unlock", "alias-and-entry", "certificate-identity-review", "certificate-validity", "private-key-unlock", "private-key-certificate-match"}:
                     fail("Signing preflight failed: " + stage[1] + ". Secret values and certificate identity were not logged.")
                 fail("Signing preflight failed in the isolated verifier. No diagnostic contents are logged.")
             fingerprint = re.fullmatch(r"CERT_SHA256=([0-9a-f]{64})\n", result.stdout)
@@ -175,7 +175,7 @@ jobs:
                     var chain = store.getCertificateChain(ALIAS);
                     require(chain != null && chain.length == 1 && chain[0] instanceof X509Certificate);
                     X509Certificate certificate = (X509Certificate) chain[0];
-                    stage = "certificate-privacy";
+                    stage = "certificate-identity-review";
                     require(genericSubject(certificate.getSubjectX500Principal()));
                     require(certificate.getIssuerX500Principal().equals(certificate.getSubjectX500Principal()));
                     Set<String> extensions = new HashSet<>();

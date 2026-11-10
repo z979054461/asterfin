@@ -42,8 +42,14 @@ The existing unsigned build workflows do not receive these Secrets.
 
 The preflight accepts a single-key PKCS12 with the `jellyfin-mobile-dev` alias,
 matching store/key passwords, and a generic Jellyfin Mobile certificate subject.
-It rejects personal subject/issuer fields, alternative names, and unsupported
-certificate extensions before emitting any certificate information. A temporary
+Passwords are passed to Java as exact UTF-8 text without trimming, normalization,
+or additional length/ASCII restrictions. Line breaks and NUL are rejected as input
+errors for this interactive-keytool configuration. Keystore unlocking determines
+whether the supplied password is valid; a strength recommendation is not a format gate.
+Before emitting certificate information, it accepts only three built-in neutral
+CN-only templates and checks issuer, alternative names, and extension types. A
+non-matching certificate is marked for identity review; this does not establish
+that it contains personal information and does not require changing the key. A temporary
 in-memory signature proof checks that the private key matches the certificate.
 Only fixed pass/failure messages and the validated certificate's public SHA-256
 fingerprint are logged. Passwords, encoded keystores, and certificate subjects
