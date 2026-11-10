@@ -40,21 +40,25 @@ validate x86_64 emulator support.
 with no checkout, project scripts, build dependencies, cache, or artifact upload.
 The existing unsigned build workflows do not receive these Secrets.
 
-The preflight accepts a single-key PKCS12 with the `jellyfin-mobile-dev` alias,
-matching store/key passwords, and a generic Jellyfin Mobile certificate subject.
+The preflight accepts a single-key PKCS12 with the `jellyfin-mobile-dev` alias and
+matching store/key passwords, and reports an advisory subject-template match.
 Passwords are passed to Java as exact UTF-8 text without trimming, normalization,
 or additional length/ASCII restrictions. Line breaks and NUL are rejected as input
 errors for this interactive-keytool configuration. Keystore unlocking determines
 whether the supplied password is valid; a strength recommendation is not a format gate.
-Before emitting certificate information, it accepts only three built-in neutral
-CN-only templates and checks issuer, alternative names, and extension types. A
-non-matching certificate is marked for identity review; this does not establish
-that it contains personal information and does not require changing the key.
+The three built-in neutral CN-only templates are a limited naming hint. A different
+project name or additional generic subject fields do not establish that a certificate
+contains personal information and do not require changing the key. Exact template
+matching does not block the credential signature proof. Issuer matching, supported
+extension types, absence of alternative names, certificate validity, and private-key
+matching checks remain required before a public fingerprint is emitted.
 Fixed boolean diagnostics distinguish subject-template matching, issuer matching,
 supported extension types, and absence of alternative names. They never include
-the field values. An unresolved identity check continues to block acceptance. A temporary
+the field values. Credential-check success is not publication approval. The intended
+certificate must be reviewed and its observed fingerprint pinned before a separate
+APK signing/delivery flow is enabled. A temporary
 in-memory signature proof checks that the private key matches the certificate.
-Only fixed pass/failure messages and the validated certificate's public SHA-256
+Only fixed diagnostic messages and the validated certificate's public SHA-256
 fingerprint are logged. Passwords, encoded keystores, and certificate subjects
 are never printed or uploaded. Temporary credential files are removed on normal
 completion; the runner is ephemeral, not a backup location.

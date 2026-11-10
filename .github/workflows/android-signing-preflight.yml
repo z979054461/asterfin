@@ -111,14 +111,14 @@ jobs:
                 if stage and stage[1] in {"input", "keystore-unlock", "alias-and-entry", "certificate-identity-review", "certificate-validity", "private-key-unlock", "private-key-certificate-match"}:
                     fail("Signing preflight failed: " + stage[1] + ". Secret values and certificate identity were not logged.")
                 fail("Signing preflight failed in the isolated verifier. No diagnostic contents are logged.")
-            if not diagnostics or any(value != "true" for value in diagnostics.groups()):
+            if not diagnostics or any(value != "true" for value in diagnostics.groups()[1:]):
                 fail("Certificate identity requires review; no certificate identity values are logged.")
             fingerprint = re.fullmatch(r"CERT_SHA256=([0-9a-f]{64})\n", remaining_output)
             if not fingerprint:
                 fail("Unexpected verifier output; output suppressed.")
-            print("PASS: PKCS12 format, passwords, alias, private key, generic certificate identity, and key/certificate match.")
+            print("PASS: PKCS12 format, passwords, alias, private key, certificate integrity, and key/certificate match.")
             print("Public signing certificate SHA-256: " + fingerprint[1])
-            summary = "### Android signing credential preflight\n\nConfiguration and certificate privacy checks passed.\n\nPublic certificate SHA-256: `" + fingerprint[1] + "`.\n\nNo project source or dependencies were run. No APK was built, signed, or uploaded. Secret material was not logged or uploaded.\n"
+            summary = "### Android signing credential preflight\n\nKeystore and private-key signature checks passed. The exact subject-template match is advisory, not approval to publish an APK.\n\nPublic certificate SHA-256: `" + fingerprint[1] + "`.\n\nNo project source or dependencies were run. No APK was built, signed, or uploaded. Secret material and certificate field values were not logged or uploaded.\n"
             with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
                 output.write(summary)
 
@@ -199,7 +199,9 @@ jobs:
                     System.out.println("CHECK_ISSUER_MATCH=" + issuerMatches);
                     System.out.println("CHECK_EXTENSION_TYPES=" + extensionsSupported);
                     System.out.println("CHECK_NO_ALT_NAMES=" + alternativeNamesAbsent);
-                    require(subjectMatches && issuerMatches && extensionsSupported && alternativeNamesAbsent);
+                    // Exact project-name templates are advisory, not evidence of personal data.
+                    // This credentials-only verifier never approves APK publication.
+                    require(issuerMatches && extensionsSupported && alternativeNamesAbsent);
                     stage = "certificate-validity";
                     certificate.checkValidity();
                     certificate.verify(certificate.getPublicKey());
