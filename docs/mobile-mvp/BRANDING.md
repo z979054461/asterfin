@@ -35,5 +35,4 @@ from the development base and still need brand/asset review before a public
 release. Existing translation keys and protocol names may retain `streamyfin`;
 they are not claims that Asterfin is an official upstream release.
 
-This rename does not establish trademark clearance or promise app-store
-availability. Public name searches are preliminary, not a legal clearance.
+The project name does not imply official endorsement or trademark clearance.

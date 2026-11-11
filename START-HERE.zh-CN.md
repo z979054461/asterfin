@@ -1,6 +1,6 @@
 # Asterfin · 0.1.0 开发快照
 
-这是基于 Streamyfin 的**开源源码首轮实现**，不是已签名、可安装或真机验收通过的成品。项目名称为 Asterfin，保留原有应用标识与签名身份。源码公开不代表已发布可安装 App。
+这是基于 Streamyfin 的**开源开发版本**，尚未完成真机验收。项目名称为 Asterfin，保留原有应用标识与签名身份。源码公开不代表已发布可安装 App。
 
 ## 已实现的增量
 
@@ -12,18 +12,18 @@
 
 媒体库、搜索、继续观看、下一集、倍速、字幕、下载等沿用 Streamyfin 现有实现。此轮重点是新增弹幕与独立构建基础；深色海报布局保留，尚未完成整体视觉重设计。成就系统未做。
 
-## 本轮验证
+## 验证
 
 详见 [验证记录](docs/mobile-mvp/VALIDATION.md)。JS 完整测试、类型检查、Biome 和 i18n 检查有实际执行记录；Android 原生工程已成功预生成。Android Java 核心用真实生产代码及本地合成 HTTP 服务执行了测试。
 
-**Kotlin/Swift 整机编译、APK/IPA、手机安装、用户真实插件、HDR/字幕叠层、耗电和流畅度仍需验证。** 不要把单元测试通过或原生工程预生成当作 App 构建通过。当前环境没有 Android SDK 或 Xcode，且未访问个人 Jellyfin、手机或签名账号。
+构建与签名流程见[测试构建](docs/mobile-mvp/TEST-BUILDS.md)。真机播放、插件兼容、HDR/字幕叠层、能耗和流畅度仍需验收；源码测试不能代替设备测试。
 
 ## 固定上游
 
 - [Streamyfin v0.55.2](https://github.com/streamyfin/streamyfin/releases/tag/v0.55.2)
 - 基线提交：`4917c6aad9fcbc08f2dfb075310f3e85182d780e`
 - 原有 MPL-2.0 许可证保留于 `LICENSE.txt`。新增弹幕代码独立编写，没有复制 GPL TV 客户端的渲染实现。
-- **底座原生播放器另有 GPL 许可，不能据主项目的 MPL 宣称整个 App 可闭源分发。** 个人私有开发可继续；分发前阅读 [许可证与私有仓库方案](docs/mobile-mvp/LICENSE-AND-PRIVATE-REPO.md)。该文档是技术核对，不替代法律意见。
+- **底座原生播放器另有 GPL 许可，不能据主项目的 MPL 宣称整个 App 可闭源分发。** 分发前阅读 [许可与分发说明](docs/mobile-mvp/LICENSE-AND-PRIVATE-REPO.md)。该文档是技术核对，不替代法律意见。
 
 ## 继续开发
 
@@ -47,13 +47,13 @@ bun run android
 
 iOS 需要 Mac/Xcode 和项目要求的 Metal/MPVKit 工具链。先运行 `bash tests/native/danmaku-ios/run.sh`，再使用 `bun run prebuild` / `bun run ios`。Expo Go 不支持这些自定义原生模块。
 
-免费 Apple Personal Team 真机签名存在 7 天期限；EAS 真机云构建/Ad Hoc/TestFlight 需要自行配置合适的开发者账户和签名。没有自动创建 EAS 项目、上传代码、购买会员或启动收费构建。不要复用上游签名，也不要在聊天或仓库写入凭据。
+免费 Apple Personal Team 真机签名存在 7 天期限；EAS 真机云构建/Ad Hoc/TestFlight 需要自行配置合适的开发者账户和签名。请配置独立签名，不要在仓库中存放凭据。
 
-## 下一轮验收顺序
+## 验收顺序
 
-1. 先完成 Android/Kotlin 原生构建与 iOS/Swift 编译，再生成内部测试包。
-2. 用临时本地 Jellyfin 与合成 XML 测试，不先使用个人服务器凭据。
+1. 确认待测提交的原生构建和测试通过，使用对应测试包。
+2. 用临时本地 Jellyfin 与合成 XML 测试，避免将真实凭据写入测试数据。
 3. 真机覆盖普通/原生全屏、续播、暂停、前后拖动、快速切集/换源、0.5×/1×/2×、缓冲、重试、旋转、后台、PiP 和普通字幕。
 4. 检查慢请求晚到、反代路径、自定义代理认证、空/缺失/过大/恶意 XML、gzip、网络中断及重定向拒绝。
 5. 测量帧耗时、内存、热状态与电量，再决定提高弹幕密度。当前采用稀疏、保守的行占用策略。
-6. 当前选择公开源码；分享二进制前完成最终原生依赖许可证与对应源码核对。
+6. 分发二进制前完成原生依赖许可证与对应源码核对。

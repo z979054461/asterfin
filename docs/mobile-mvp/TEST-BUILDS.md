@@ -1,85 +1,43 @@
-# Test builds, not releases
+# Test builds
 
-The `mobile-dev` branch runs source checks, production Swift core tests, an Android
-unsigned APK build, and a complete unsigned iOS app build. The build workflows
-have read-only repository permissions. They do not use EAS/Apple credentials,
-publish GitHub Releases, upload APK/IPA artifacts, or access a Jellyfin server.
+Asterfin has separate source checks, native compilation, credential preflight and
+encrypted test-package workflows. Test packages are not stable releases.
 
-## Android
+## Build checks
 
-`native-checks.yml` runs `expo prebuild --platform android --no-install`, then:
+- `native-checks.yml`: Android native build and production Swift core tests.
+- `ios-app-check.yml`: complete unsigned iPhone/iPad app compilation with Xcode.
+- `source-checks.yml`: TypeScript, unit tests, formatting and related source checks.
 
-```sh
-cd android
-NODE_ENV=production ./gradlew :app:assembleRelease --no-daemon --max-workers=2 \
-  -PreactNativeArchitectures=arm64-v8a
-```
+An unsigned APK or IPA is not directly installable. Compilation and package
+verification do not establish playback or danmaku behavior on a device.
 
-The Release variant bundles Hermes/JavaScript. Before Gradle runs, the workflow
-removes the two debug-signing bindings in Expo's generated template. It fails
-closed if the expected template changes. No development or release signing key
-is used. The unsigned APK **cannot be installed** until signing is separately
-authorized; this stage checks packaging and compilation only.
+## Android signing
 
-The job checks that APK signature verification fails, plus the development application ID, non-debuggable
-manifest, JavaScript bundle, DEX files, and ARM64 MPV/Hermes/React Native libraries.
-It prints a SHA256 in the job summary. The unsigned APK stays on the temporary runner; it is
-not made available for download while runtime testing is incomplete.
+`android-signing-preflight.yml` validates the signing configuration separately
+from source builds. Required repository Secrets are:
 
-Package verification is not an emulator/device pass. Still required: clean
-install and launch, MPV and native fullscreen playback, subtitles/danmaku,
-background/PiP, seek/speed/episode changes, and credential-redacted logs. See
-[ANDROID.md](ANDROID.md) for the full test matrix. The ARM64 package does not
-validate x86_64 emulator support.
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
 
-### Isolated Android credential preflight
+The configured format is single-key PKCS12 with matching store/key passwords.
+Signing uses the pinned certificate identity; do not rotate it for a branding
+change. Passwords, keystore data and certificate subjects must not appear in logs.
 
-`android-signing-preflight.yml` checks the four configured repository Secrets:
-`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and
-`ANDROID_KEY_PASSWORD`. It runs only for this repository's `mobile-dev` branch,
-with no checkout, project scripts, build dependencies, cache, or artifact upload.
-The existing unsigned build workflows do not receive these Secrets.
+`android-private-test.yml` separates building from signing and encrypts test
+artifacts. Public Actions artifacts must not contain plaintext private test
+packages or credentials. Ephemeral runners are not signing-key backups.
 
-The preflight accepts a single-key PKCS12 with the `jellyfin-mobile-dev` alias and
-matching store/key passwords, and reports an advisory subject-template match.
-Passwords are passed to Java as exact UTF-8 text without trimming, normalization,
-or additional length/ASCII restrictions. Line breaks and NUL are rejected as input
-errors for this interactive-keytool configuration. Keystore unlocking determines
-whether the supplied password is valid; a strength recommendation is not a format gate.
-The three built-in neutral CN-only templates are a limited naming hint. A different
-project name or additional generic subject fields do not establish that a certificate
-contains personal information and do not require changing the key. Exact template
-matching does not block the credential signature proof. Issuer matching, supported
-extension types, absence of alternative names, certificate validity, and private-key
-matching checks remain required before a public fingerprint is emitted.
-Fixed boolean diagnostics distinguish subject-template matching, issuer matching,
-supported extension types, and absence of alternative names. They never include
-the field values. Credential-check success is not publication approval. The intended
-certificate must be reviewed and its observed fingerprint pinned before a separate
-APK signing/delivery flow is enabled. A temporary
-in-memory signature proof checks that the private key matches the certificate.
-Only fixed diagnostic messages and the validated certificate's public SHA-256
-fingerprint are logged. Passwords, encoded keystores, and certificate subjects
-are never printed or uploaded. Temporary credential files are removed on normal
-completion; the runner is ephemeral, not a backup location.
+## iOS testing
 
-This is a credentials check, not a signed APK build or an installation test.
-Signing and source builds must retain separate trust boundaries. Public-repository
-Actions artifacts are not a private transfer channel. Do not upload unsigned or
-signed test APKs without explicit authorization for that visibility, and do not
-reuse an unrelated upstream README/PR build as the custom mobile client.
+`ios-personal-test.yml` creates an encrypted unsigned IPA with a Personal Team
+compatible configuration. It does not receive Apple credentials or sign the app.
+See [iOS test configuration](IOS-PERSONAL-TEST.md) for feature differences.
 
-## iOS
+## Acceptance
 
-`ios-app-check.yml` builds the full iPhone/iPad app and its Live Activity extension
-using CocoaPods and Xcode, with code signing disabled. It does not package an IPA
-or upload the `.app`. An unsigned device `.app` cannot be installed on a normal
-iPhone. Signing, provisioning, App Store/TestFlight, simulator launch, and physical
-device tests remain separate unverified stages. See [IOS.md](IOS.md).
-
-## Reporting results
-
-Only report a stage as passed after checking the workflow for the exact commit.
-A green Swift core job does not mean the iOS app built. A green Android package job
-does not mean playback or danmaku works on a device. The known Expo Doctor warnings
-are separate from these native build results.
+Check the exact commit's workflow results. Core tests, complete app builds,
+signing, installation and runtime validation are distinct stages. The remaining
+device checks are listed in [VALIDATION.md](VALIDATION.md).

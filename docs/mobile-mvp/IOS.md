@@ -1,6 +1,6 @@
 # iOS mobile danmaku implementation and verification
 
-Local development only. No user server/device/account was accessed. No iOS build, signing, installation or distribution has been performed.
+The iOS implementation supports mobile MPV playback. Device acceptance remains required.
 
 ## Implementation
 
@@ -11,12 +11,12 @@ Local development only. No user server/device/account was accessed. No iOS build
 - Renderer maintains an independent thread-safe media-time snapshot from raw mpv time-pos events and an actual time-pos sample on playback restart. Load/seek/end invalidate it; a lock-protected epoch fences property read/commit races, and a command/boundary gate blocks restarts until the requested load generation or seek boundary arrives; no wall-clock extrapolation or JS progress timing is used. Existing 1 Hz bridge throttling remains. Since no time is extrapolated, pause and buffering do not advance comments.
 - Every configuration/source reload, disable, detach and teardown cancels download and generation-fences late download/layout completions. Detach also invalidates CADisplayLink. Temporary engine destroy suspends the overlay while retaining its latest accepted configuration for the next actual load; final shutdown discards it. Background and PiP suppress drawing and controls. PiP intentionally contains no danmaku. TV hosts do not instantiate this overlay.
 
-## Verification performed here
+## Validation
 
-- `git diff --check -- modules/mpv-player/ios tests/native/danmaku-ios`: passed.
-- `python tests/native/danmaku-ios/check-lifecycle-source.py`: passed eleven static source guards for mounted reuse, network/layout generations and clock fencing. This does not execute Swift.
-- `tests/native/danmaku-ios/run.sh`: **SKIPPED (77)** because `swiftc` is not installed. This is not a native test pass.
-- No Xcode/UIKit/CoreText/Expo/MPVKit compile or simulator/device check is possible on this Linux host. Swift code remains uncompiled and needs a native integration review before any build is called usable.
+Run `bash tests/native/danmaku-ios/run.sh` on a Swift host for production core tests.
+`python tests/native/danmaku-ios/check-lifecycle-source.py` checks source guards,
+not runtime behavior. Full Xcode compilation and packaging are separate checks;
+see [TEST-BUILDS.md](TEST-BUILDS.md).
 
 ## Reproducible next checks
 
@@ -28,6 +28,6 @@ Local development only. No user server/device/account was accessed. No iOS build
 
 ## Known MVP tradeoffs
 
-Lane scheduling is conservative, not a high-density collision predictor. The overlay is sized to the player bounds rather than the letterboxed video rectangle. In the presented native player the drawing stays below SwiftUI chrome; only its small controls are reparented above the gesture surface. Verify visual interaction with menus and sheets. Transport is covered by design review and synthetic parser tests only until the integration checks above are run; no endpoint or entitlement has been inferred to work on the user's server.
+Lane scheduling is conservative, not a high-density collision predictor. The overlay is sized to the player bounds rather than the letterboxed video rectangle. In the presented native player the drawing stays below SwiftUI chrome; only its small controls are reparented above the gesture surface. Verify visual interaction with menus and sheets. Transport is covered by design review and synthetic parser tests only until the integration checks above are run; server compatibility and entitlements must be checked on the target device.
 
 Rapid overlapping libmpv load/seek event ordering still requires native integration testing: the standalone state-machine cases and source guards do not prove exhaustive real-event correctness. Seek boundaries have no per-command libmpv identifier; a restart additionally checks the actual mpv seeking flag before publishing its epoch-fenced sample.
