@@ -70,7 +70,8 @@
     private var queuedCount = 0
 
     private var activitiesAvailable: Bool {
-      ActivityAuthorizationInfo().areActivitiesEnabled
+      Bundle.main.object(forInfoDictionaryKey: "NSSupportsLiveActivities") as? Bool == true
+        && ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
     // MARK: - Configuration

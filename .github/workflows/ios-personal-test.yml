@@ -1,0 +1,126 @@
+name: iOS private Personal Team test
+
+on:
+  push:
+    branches: [mobile-dev]
+    paths: [.github/workflows/ios-personal-test.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: ios-personal-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build encrypted unsigned iPhone test package
+    if: github.repository_id == '1451291617' && github.ref == 'refs/heads/mobile-dev'
+    runs-on: macos-26
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "1"
+      EXPO_TV: "0"
+      ASTERFIN_IOS_PERSONAL_TEAM: "1"
+      EXPO_NO_TELEMETRY: "1"
+      NODE_ENV: production
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      COCOAPODS_DISABLE_STATS: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: "1.4.2"
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.6"
+      - name: Verify public encryption recipient and toolchain
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir "$RUNNER_TEMP/asterfin-ios-private"
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          test -x "$openssl_bin"
+          "$openssl_bin" version
+          fingerprint=$("$openssl_bin" x509 -in scripts/ios/test-delivery-recipient.pem -outform DER | shasum -a 256 | cut -d ' ' -f1)
+          test "$fingerprint" = '1fe0500436cceb73a0d4e4a65e71476440222198a64bc1e7deb7a1a347ffae2c'
+          "$openssl_bin" x509 -checkend 7200 -noout -in scripts/ios/test-delivery-recipient.pem
+          xcodebuild -version
+          node -e 'if (Number(process.versions.node.split(".")[0]) < 22) throw new Error("Node 22+ required")'
+      - name: Prepare toolchain and locked source without account credentials
+        run: |
+          set -euo pipefail
+          private="$RUNNER_TEMP/asterfin-ios-private"
+          {
+            bash scripts/ios/install-metal-toolchain.sh
+            if ! xcrun metal -v; then
+              xcodebuild -downloadComponent MetalToolchain
+              xcrun metal -v
+            fi
+            NODE_ENV=development bun install --frozen-lockfile
+            bunx expo prebuild --platform ios --no-install
+            printf 'export NODE_BINARY="%s"\n' "$(command -v node)" > ios/.xcode.env.local
+            python3 scripts/ios/verify-personal-team.py
+            (cd ios && pod install --repo-update)
+          } > "$private/prepare.log" 2>&1
+      - name: Compile complete arm64 Release app without signing
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -workspace ios/Asterfin.xcworkspace \
+            -scheme Asterfin -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/asterfin-ios-derived-data" \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            build > "$RUNNER_TEMP/asterfin-ios-private/build.log" 2>&1
+      - name: Verify and package app with source and license records
+        run: |
+          set -euo pipefail
+          python3 scripts/ios/package-personal-test.py \
+            "$RUNNER_TEMP/asterfin-ios-derived-data/Build/Products/Release-iphoneos/Asterfin.app" \
+            "$RUNNER_TEMP/asterfin-ios-private/delivery"
+      - name: Encrypt delivery or diagnostics before uploading
+        if: always()
+        run: |
+          set -euo pipefail
+          umask 077
+          private="$RUNNER_TEMP/asterfin-ios-private"
+          test -d "$private"
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          fingerprint=$("$openssl_bin" x509 -in scripts/ios/test-delivery-recipient.pem -outform DER | shasum -a 256 | cut -d ' ' -f1)
+          test "$fingerprint" = '1fe0500436cceb73a0d4e4a65e71476440222198a64bc1e7deb7a1a347ffae2c'
+          # Only the dedicated private directory enters the transfer, never the workspace,
+          # runner environment, account settings, credential store, or signing files.
+          ditto -c -k --keepParent "$private" "$RUNNER_TEMP/asterfin-ios-transfer.zip"
+          mkdir "$RUNNER_TEMP/asterfin-ios-ciphertext"
+          "$openssl_bin" cms -encrypt -binary -aes-256-gcm -outform DER \
+            -in "$RUNNER_TEMP/asterfin-ios-transfer.zip" \
+            -out "$RUNNER_TEMP/asterfin-ios-ciphertext/delivery.cms" \
+            -recip scripts/ios/test-delivery-recipient.pem \
+            -keyopt rsa_padding_mode:oaep -keyopt rsa_oaep_md:sha256 -keyopt rsa_mgf1_md:sha256
+          test -s "$RUNNER_TEMP/asterfin-ios-ciphertext/delivery.cms"
+      - name: Upload only encrypted bytes for private delivery
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: asterfin-ios-private-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/asterfin-ios-ciphertext/delivery.cms
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          archive: true
+          include-hidden-files: false
+      - name: Dispose temporary plaintext and ciphertext
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP/asterfin-ios-private" \
+            "$RUNNER_TEMP/asterfin-ios-derived-data" \
+            "$RUNNER_TEMP/asterfin-ios-transfer.zip" \
+            "$RUNNER_TEMP/asterfin-ios-ciphertext"

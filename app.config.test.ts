@@ -107,3 +107,56 @@ test("loading the config leaves Node's module loader alone", () => {
   });
   expect({ ...handlers }).toEqual(before);
 });
+
+describe("Personal Team iOS test flavor", () => {
+  const previous = process.env.ASTERFIN_IOS_PERSONAL_TEAM;
+  const previousTV = process.env.EXPO_TV;
+  afterEach(() => {
+    if (previous === undefined) delete process.env.ASTERFIN_IOS_PERSONAL_TEAM;
+    else process.env.ASTERFIN_IOS_PERSONAL_TEAM = previous;
+    if (previousTV === undefined) delete process.env.EXPO_TV;
+    else process.env.EXPO_TV = previousTV;
+  });
+
+  const resolve = () =>
+    resolveConfig({ config: structuredClone(appJson.expo) } as ConfigContext);
+  const pluginNames = (config: ReturnType<typeof resolve>) =>
+    config.plugins?.map((plugin) =>
+      Array.isArray(plugin) ? plugin[0] : plugin,
+    );
+
+  test("is opt-in and leaves the default extension enabled", () => {
+    delete process.env.ASTERFIN_IOS_PERSONAL_TEAM;
+    process.env.EXPO_TV = "0";
+    const config = resolve();
+    expect(pluginNames(config)).toContain(
+      "./plugins/withDownloadLiveActivity.ts",
+    );
+    expect(pluginNames(config)).not.toContain("./plugins/withPersonalTeam.ts");
+    expect(config.extra?.iosPersonalTeam).toBeUndefined();
+  });
+
+  test("omits the extension and strips capabilities after other plugins", () => {
+    process.env.ASTERFIN_IOS_PERSONAL_TEAM = "1";
+    process.env.EXPO_TV = "0";
+    const config = resolve();
+    expect(pluginNames(config)).not.toContain(
+      "./plugins/withDownloadLiveActivity.ts",
+    );
+    expect(pluginNames(config)).not.toContain("expo-notifications");
+    expect(pluginNames(config)?.at(-1)).toBe("./plugins/withPersonalTeam.ts");
+    expect(config.extra?.iosPersonalTeam).toBe(true);
+    expect(config.ios?.bundleIdentifier).toBe(
+      appJson.expo.ios.bundleIdentifier,
+    );
+    expect(config.android).toEqual(
+      expect.objectContaining(appJson.expo.android),
+    );
+  });
+
+  test("does not silently change a TV build", () => {
+    process.env.ASTERFIN_IOS_PERSONAL_TEAM = "1";
+    process.env.EXPO_TV = "1";
+    expect(resolve).toThrow("iPhone/iPad only");
+  });
+});

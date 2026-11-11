@@ -39,6 +39,10 @@
     /// fine, the caller's flow works without it: the module's own activity is live regardless and
     /// simply degrades to projected progress once the process suspends.
     func ensureRunning(title: String, subtitle: String) {
+      // The Personal Team flavor omits the Live Activity plugin and its task declaration.
+      // Re-signing can also change the bundle ID. Never register an undeclared identifier.
+      let permitted = Bundle.main.object(forInfoDictionaryKey: "BGTaskSchedulerPermittedIdentifiers") as? [String] ?? []
+      guard permitted.contains(Self.taskIdentifier) else { return }
       queue.async {
         if let task = self.task {
           task.updateTitle(title, subtitle: subtitle)

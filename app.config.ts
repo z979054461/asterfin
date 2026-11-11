@@ -86,6 +86,25 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     androidConfig.googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
   }
 
+  // A dedicated phone-only flavor can be re-signed with a free Personal Team.
+  // The default build retains its full capabilities and extension.
+  if (process.env.ASTERFIN_IOS_PERSONAL_TEAM === "1") {
+    if (process.env.EXPO_TV === "1") {
+      throw new Error("The Personal Team test flavor is for iPhone/iPad only");
+    }
+    config.plugins = (config.plugins ?? []).filter((plugin) => {
+      const name = Array.isArray(plugin) ? plugin[0] : plugin;
+      return (
+        name !== "./plugins/withDownloadLiveActivity.ts" &&
+        name !== "expo-notifications"
+      );
+    });
+    // The notifications native module stays autolinked for local notifications.
+    // Its config plugin is omitted because it unconditionally adds APNs.
+    config.plugins.push("./plugins/withPersonalTeam.ts");
+    config.extra = { ...config.extra, iosPersonalTeam: true };
+  }
+
   config.extra = { ...config.extra, build: buildMeta };
 
   return {
