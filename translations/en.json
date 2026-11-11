@@ -1236,6 +1236,7 @@
     "header_count": "{{count}} headers"
   },
   "danmaku": {
+    "settings": "Danmaku settings",
     "title": "Danmaku",
     "description": "Reads existing XML directly from your connected Jellyfin server. No third-party lookup. Mobile online Direct Play and Direct Stream only. Transcoding, downloads, live TV, casting and Picture in Picture are not supported yet.",
     "enabled": "Load danmaku automatically",

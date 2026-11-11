@@ -4,6 +4,7 @@ import { Text } from "@/components/common/Text";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 
 interface StepperProps {
+  accessibilityLabel?: string;
   value: number;
   disabled?: boolean;
   step: number;
@@ -15,6 +16,7 @@ interface StepperProps {
 }
 
 export const Stepper: React.FC<StepperProps> = ({
+  accessibilityLabel,
   value,
   disabled,
   step,
@@ -33,6 +35,10 @@ export const Stepper: React.FC<StepperProps> = ({
       className='flex flex-row items-center'
     >
       <TouchableOpacity
+        accessibilityRole='button'
+        accessibilityLabel={
+          accessibilityLabel ? `${accessibilityLabel} −` : undefined
+        }
         disabled={isDisabled}
         accessibilityState={{ disabled: isDisabled }}
         onPress={() => {
@@ -49,6 +55,10 @@ export const Stepper: React.FC<StepperProps> = ({
         {appendValue}
       </Text>
       <TouchableOpacity
+        accessibilityRole='button'
+        accessibilityLabel={
+          accessibilityLabel ? `${accessibilityLabel} +` : undefined
+        }
         disabled={isDisabled}
         accessibilityState={{ disabled: isDisabled }}
         className='w-8 h-8 bg-neutral-800 rounded-r-lg flex items-center justify-center'

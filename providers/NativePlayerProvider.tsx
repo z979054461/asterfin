@@ -87,6 +87,7 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
+import { readNativeDanmakuSettings } from "@/utils/danmaku/nativeSettings";
 import { buildDanmakuLabels } from "@/utils/danmaku/strings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -1664,6 +1665,16 @@ const NativePlayerProviderInner: React.FC<{
           bitrateValue: requested,
           positionTicks: msToTicks(payload.positionSec * 1000),
         });
+      }),
+
+      addNativePlayerListener("onDanmakuSettingsChange", (payload) => {
+        if (!sessionRef.current) return;
+        const danmaku = readNativeDanmakuSettings(payload);
+        if (!danmaku) return;
+        // Native already applied the change. Keep the next episode's config in
+        // sync immediately, before the settings store triggers a React render.
+        settingsRef.current = { ...settingsRef.current, danmaku };
+        updateSettings({ danmaku });
       }),
 
       addNativePlayerListener("onSubtitleScaleChange", (payload) => {

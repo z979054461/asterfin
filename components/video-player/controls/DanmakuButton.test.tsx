@@ -8,6 +8,40 @@ jest.mock("react-i18next", () => ({
 
 afterEach(() => jest.restoreAllMocks());
 
+it("opens in-player settings without toggling or restarting danmaku", async () => {
+  const onSettings = jest.fn();
+  const onToggle = jest.fn();
+  const onRetry = jest.fn();
+  await render(
+    <DanmakuButton
+      available
+      enabled
+      status='ready'
+      onToggle={onToggle}
+      onRetry={onRetry}
+      onSettings={onSettings}
+    />,
+  );
+  await fireEvent.press(screen.getByLabelText("danmaku.settings"));
+  expect(onSettings).toHaveBeenCalledTimes(1);
+  expect(onToggle).not.toHaveBeenCalled();
+  expect(onRetry).not.toHaveBeenCalled();
+});
+
+it("does not advertise settings for unsupported playback", async () => {
+  await render(
+    <DanmakuButton
+      available={false}
+      enabled={false}
+      status='disabled'
+      onToggle={jest.fn()}
+      onRetry={jest.fn()}
+      onSettings={jest.fn()}
+    />,
+  );
+  expect(screen.queryByLabelText("danmaku.settings")).toBeNull();
+});
+
 it("toggles enabled danmaku without navigating or restarting playback", async () => {
   const onToggle = jest.fn();
   await render(

@@ -1,3 +1,4 @@
+import type { DanmakuSettings } from "@/utils/danmaku/config";
 import type { DanmakuConfig } from "./Danmaku.types";
 
 /**
@@ -348,6 +349,8 @@ export type NativePlayerDismissPayload = {
 };
 
 export type NativePlayerEvents = {
+  /** Only appearance preferences cross back; never persist URL or headers. */
+  onDanmakuSettingsChange: (payload: DanmakuSettings) => void;
   /** `muted` is the combined device-volume + player mute at load time. */
   onLoad: (payload: { url: string; muted?: boolean }) => void;
   onProgress: (payload: NativePlayerProgressPayload) => void;

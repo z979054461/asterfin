@@ -17,6 +17,7 @@ private final class DanmakuDisplayTarget: NSObject {
 
 /// Does not composite into the video sample buffer: PiP and subtitles stay independent.
 final class DanmakuOverlay: UIView {
+    var onSettingsChange: (([String: Any]) -> Void)?
     var onStatus: ((String, Int) -> Void)?
     var nativeControls = true { didSet { updateControls() } }
     var clock: (() -> Double?)?
@@ -43,6 +44,11 @@ final class DanmakuOverlay: UIView {
         if state != oldValue { onStatus?(state.isEmpty ? "disabled" : state, comments.count) }
     } }
     private let toggle = UIButton(type: .system)
+    private let settings = UIButton(type: .system)
+    private let settingsPanel = UIScrollView()
+    private let settingsRows = UIStackView()
+    private var settingsOpen = false
+    private var settingsViewport = CGSize.zero
     private let retry = UIButton(type: .system)
     private let status = UILabel()
 
@@ -52,7 +58,12 @@ final class DanmakuOverlay: UIView {
         displayTarget.overlay = self
         toggle.addTarget(self, action: #selector(toggleEnabled), for: .touchUpInside)
         retry.addTarget(self, action: #selector(retryDownload), for: .touchUpInside)
-        for button in [toggle, retry] {
+        settings.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
+        settingsPanel.backgroundColor = UIColor.black.withAlphaComponent(0.92)
+        settingsPanel.layer.cornerRadius = 12
+        settingsRows.axis = .vertical; settingsRows.spacing = 4
+        settingsPanel.addSubview(settingsRows); addSubview(settingsPanel)
+        for button in [toggle, retry, settings] {
             button.tintColor = .white; button.backgroundColor = UIColor.black.withAlphaComponent(0.65)
             button.layer.cornerRadius = 8; button.titleLabel?.font = .systemFont(ofSize: 13)
             addSubview(button)
@@ -67,7 +78,7 @@ final class DanmakuOverlay: UIView {
     // The drawing stays below SwiftUI chrome. Only these small controls are
     // reparented above its transparent full-screen gesture surface.
     func attachControls(to host: UIView) {
-        for control in [toggle, retry, status] { host.addSubview(control) }
+        for control in [toggle, retry, status, settings, settingsPanel] { host.addSubview(control) }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     deinit { NotificationCenter.default.removeObserver(self); displayLink?.invalidate(); download?.cancel() }
@@ -77,7 +88,7 @@ final class DanmakuOverlay: UIView {
     // Hosts call this when PiP changes. Disabled controls need updates even without a display link.
     func refreshVisibility() {
         wasSuppressed = presentationSuppressed
-        if wasSuppressed { mediaTime = nil; setNeedsDisplay() }
+        if wasSuppressed { settingsOpen = false; mediaTime = nil; setNeedsDisplay() }
         updateControls()
     }
 
@@ -88,6 +99,7 @@ final class DanmakuOverlay: UIView {
             startDisplayLinkIfNeeded()
             if config?.enabled == true && download == nil && comments.isEmpty { fetch() }
         } else {
+            settingsOpen = false; updateControls()
             generation += 1; planGeneration += 1; download?.cancel(); download = nil
             glyphs = []; comments = []; mediaTime = nil
         }
@@ -108,6 +120,13 @@ final class DanmakuOverlay: UIView {
         configure(decoded?.valid == true ? decoded : nil)
     }
     func configure(_ value: DanmakuConfig?) {
+        if let value, let current = config, !suspendedForReuse,
+           current.serverUrl == value.serverUrl, current.itemId == value.itemId,
+           current.headers == value.headers, current.retryKey == value.retryKey {
+            applySettings(value, notify: false)
+            return
+        }
+        settingsOpen = false
         resumeConfig = value
         guard !suspendedForReuse else { return }
         generation += 1; planGeneration += 1
@@ -126,7 +145,73 @@ final class DanmakuOverlay: UIView {
     func stop() { suspendedForReuse = false; configure(nil); displayLink?.invalidate(); displayLink = nil }
     @objc private func toggleEnabled() {
         guard var config else { return }
-        config.enabled.toggle(); configure(config)
+        config.enabled.toggle(); applySettings(config)
+    }
+    private func applySettings(_ value: DanmakuConfig, notify: Bool = true) {
+        let changedEnabled = config?.enabled != value.enabled
+        config = value; resumeConfig = value
+        if changedEnabled {
+            if value.enabled { state = comments.isEmpty ? "loading" : "ready"; if comments.isEmpty { fetch() } }
+            else { generation += 1; download?.cancel(); download = nil; state = "disabled"; mediaTime = nil }
+            startDisplayLinkIfNeeded()
+        }
+        rebuild(); updateControls()
+        if notify { onSettingsChange?(["enabled": value.enabled, "fontScale": value.fontScale,
+            "opacity": value.opacity, "maxLines": value.maxLines,
+            "durationSeconds": value.durationSeconds, "offsetSeconds": value.offsetSeconds]) }
+    }
+    @objc private func openSettings() { settingsOpen.toggle(); if settingsOpen { buildSettings() }; updateControls(); setNeedsLayout() }
+    private func buildSettings() {
+        for view in settingsRows.arrangedSubviews { settingsRows.removeArrangedSubview(view); view.removeFromSuperview() }
+        guard let config else { return }
+        let close = UIButton(type: .system)
+        close.setTitle(config.labels["close"], for: .normal); close.tintColor = .white
+        close.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
+        settingsRows.addArrangedSubview(close)
+        let enabledSwitch = UISwitch(); enabledSwitch.isOn = config.enabled
+        enabledSwitch.accessibilityLabel = config.labels["enabled"]
+        enabledSwitch.addAction(UIAction { [weak self, weak enabledSwitch] _ in
+            guard let self, let enabledSwitch, var value = self.config else { return }
+            value.enabled = enabledSwitch.isOn; self.applySettings(value)
+        }, for: .valueChanged)
+        addSettingsRow(title: config.labels["enabled"] ?? "", control: enabledSwitch)
+        let fields: [(String, Double, Double, Double, Double)] = [
+            ("fontScale", config.fontScale, 0.7, 1.5, 0.1),
+            ("opacity", config.opacity, 0.3, 1, 0.05),
+            ("maxLines", Double(config.maxLines), 1, 8, 1),
+            ("durationSeconds", config.durationSeconds, 4, 12, 1),
+            ("offsetSeconds", config.offsetSeconds, -30, 30, 0.5)]
+        for (key, value, minimum, maximum, step) in fields {
+            let stepper = UIStepper(); stepper.minimumValue = minimum; stepper.maximumValue = maximum
+            stepper.stepValue = step; stepper.value = value
+            stepper.accessibilityLabel = config.labels[key]
+            let title = UILabel(); title.textColor = .white; title.font = .systemFont(ofSize: 13)
+            let updateTitle = { [weak stepper] in guard let stepper else { return }; title.text = "\(config.labels[key] ?? key): \(String(format: "%.2g", stepper.value))"; stepper.accessibilityValue = String(format: "%.2g", stepper.value) }
+            updateTitle()
+            stepper.addAction(UIAction { [weak self, weak stepper] _ in
+                guard let self, let stepper, var next = self.config else { return }
+                let number = (stepper.value * 100).rounded() / 100
+                switch key {
+                case "fontScale": next.fontScale = number
+                case "opacity": next.opacity = number
+                case "maxLines": next.maxLines = Int(number)
+                case "durationSeconds": next.durationSeconds = number
+                default: next.offsetSeconds = number
+                }
+                updateTitle(); self.applySettings(next)
+            }, for: .valueChanged)
+            addSettingsRow(label: title, control: stepper)
+        }
+    }
+    private func addSettingsRow(title: String, control: UIView) {
+        let label = UILabel(); label.text = title; label.textColor = .white; label.font = .systemFont(ofSize: 13)
+        addSettingsRow(label: label, control: control)
+    }
+    private func addSettingsRow(label: UILabel, control: UIView) {
+        let row = UIStackView(arrangedSubviews: [label, control]); row.axis = .horizontal
+        row.alignment = .center; row.spacing = 8
+        row.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        settingsRows.addArrangedSubview(row)
     }
     @objc private func retryDownload() { fetch() }
     private func fetch() {
@@ -155,18 +240,28 @@ final class DanmakuOverlay: UIView {
     }
     override func layoutSubviews() {
         super.layoutSubviews()
+        if settingsViewport != .zero && settingsViewport != bounds.size { settingsOpen = false; updateControls() }
+        settingsViewport = bounds.size
         let left = safeAreaInsets.left + 12
         let top = safeAreaInsets.top + 62
         toggle.frame = CGRect(x: left, y: top, width: 110, height: 44)
-        retry.frame = CGRect(x: left + 114, y: top, width: 90, height: 44)
+        settings.frame = CGRect(x: left + 114, y: top, width: 110, height: 44)
+        settingsPanel.frame = CGRect(x: left, y: safeAreaInsets.top + 12, width: min(360, bounds.width - left - safeAreaInsets.right - 12), height: max(0, min(390, bounds.height - safeAreaInsets.top - safeAreaInsets.bottom - 24)))
+        settingsRows.frame = CGRect(x: 12, y: 8, width: settingsPanel.bounds.width - 24, height: 380)
+        settingsPanel.contentSize = CGSize(width: settingsPanel.bounds.width, height: 396)
+        retry.frame = CGRect(x: left + 228, y: top, width: 90, height: 44)
         status.frame = CGRect(x: left, y: top + 46, width: min(260, max(0, bounds.width - left)), height: 22)
         if plannedSize != bounds.size { rebuild() }
     }
     private func updateControls() {
-        let hidden = !nativeControls || config == nil || !controlsVisible || presentationSuppressed
-        toggle.isHidden = hidden
-        retry.isHidden = hidden || !["auth", "unavailable", "error", "empty"].contains(state) || config?.enabled != true
-        status.isHidden = hidden || state.isEmpty || config?.enabled != true
+        let hidden = !nativeControls || config == nil || (!controlsVisible && !settingsOpen) || presentationSuppressed
+        settingsPanel.isHidden = hidden || !settingsOpen
+        settings.isHidden = hidden || settingsOpen
+        settings.setTitle(config?.labels["settings"], for: .normal)
+        settings.accessibilityLabel = config?.labels["settings"]
+        toggle.isHidden = hidden || settingsOpen
+        retry.isHidden = hidden || settingsOpen || !["auth", "unavailable", "error", "empty"].contains(state) || config?.enabled != true
+        status.isHidden = hidden || settingsOpen || state.isEmpty || config?.enabled != true
         let title = config?.labels["toggle"] ?? ""
         toggle.setTitle(title + (config?.enabled == true ? " ✓" : ""), for: .normal)
         toggle.accessibilityLabel = title
@@ -175,7 +270,8 @@ final class DanmakuOverlay: UIView {
         status.text = config?.labels[state]
     }
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        for button in [toggle, retry] where !button.isHidden && button.superview === self {
+        if !settingsPanel.isHidden && settingsPanel.superview === self && settingsPanel.frame.contains(point) { return settingsPanel.hitTest(convert(point, to: settingsPanel), with: event) }
+        for button in [toggle, retry, settings] where !button.isHidden && button.superview === self {
             if button.frame.contains(point) { return button }
         }
         return nil

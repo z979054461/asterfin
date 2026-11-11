@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, StyleSheet, Text } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import type { DanmakuStatus } from "@/modules/mpv-player/src/Danmaku.types";
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   status: DanmakuStatus;
   onToggle: () => void;
   onRetry: () => void;
+  onSettings?: () => void;
 }
 
 export function DanmakuButton({
@@ -16,6 +17,7 @@ export function DanmakuButton({
   status,
   onToggle,
   onRetry,
+  onSettings,
 }: Props) {
   const { t } = useTranslation();
   const statusLabel = !available
@@ -33,27 +35,41 @@ export function DanmakuButton({
   const failed =
     available && enabled && ["error", "auth", "unavailable"].includes(status);
   return (
-    <Pressable
-      accessibilityRole='switch'
-      accessibilityState={{ checked: enabled && available }}
-      accessibilityLabel={t("danmaku.title")}
-      accessibilityHint={statusLabel}
-      onPress={available ? onToggle : showDetails}
-      onLongPress={showDetails}
-      hitSlop={8}
-      style={[
-        styles.button,
-        enabled && available && styles.active,
-        failed && styles.failed,
-      ]}
-    >
-      <Text style={styles.text}>{t("danmaku.title")}</Text>
-      {failed ? <Text style={styles.warning}>!</Text> : null}
-    </Pressable>
+    <View style={styles.row}>
+      <Pressable
+        accessibilityRole='switch'
+        accessibilityState={{ checked: enabled && available }}
+        accessibilityLabel={t("danmaku.title")}
+        accessibilityHint={statusLabel}
+        onPress={available ? onToggle : showDetails}
+        onLongPress={showDetails}
+        hitSlop={8}
+        style={[
+          styles.button,
+          enabled && available && styles.active,
+          failed && styles.failed,
+        ]}
+      >
+        <Text style={styles.text}>{t("danmaku.title")}</Text>
+        {failed ? <Text style={styles.warning}>!</Text> : null}
+      </Pressable>
+      {available && onSettings ? (
+        <Pressable
+          accessibilityRole='button'
+          accessibilityLabel={t("danmaku.settings")}
+          onPress={onSettings}
+          style={styles.button}
+          hitSlop={8}
+        >
+          <Text style={styles.text}>⚙</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center" },
   button: {
     minHeight: 44,
     paddingHorizontal: 12,

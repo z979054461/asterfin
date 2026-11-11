@@ -13,9 +13,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
-import { APP_DISPLAY_NAME } from "@/constants/Branding";
 import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
+import { getIntroCopy } from "@/utils/branding/intro";
 import { storage } from "@/utils/mmkv";
 
 export interface IntroSheetRef {
@@ -25,7 +25,8 @@ export interface IntroSheetRef {
 
 export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const copy = getIntroCopy(t, i18n.resolvedLanguage);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { settings, updateSettings, pluginSettings } = useSettings();
@@ -80,10 +81,7 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
         <View className={Platform.isTV ? "py-5 space-y-4" : "py-4 space-y-6"}>
           <View>
             <Text className='text-3xl font-bold text-center mb-2'>
-              {t("home.intro.welcome_to_streamyfin").replace(
-                /streamyfin/gi,
-                APP_DISPLAY_NAME,
-              )}
+              {copy.welcome}
             </Text>
             <Text className='text-center'>
               {t("home.intro.a_free_and_open_source_client_for_jellyfin")}
@@ -94,9 +92,7 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
             <Text className='text-lg font-bold'>
               {t("home.intro.features_title")}
             </Text>
-            <Text className='text-xs'>
-              {t("home.intro.features_description")}
-            </Text>
+            <Text className='text-xs'>{copy.features}</Text>
             <View className='flex flex-row items-center mt-4'>
               <View
                 style={{
@@ -201,9 +197,7 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
           </View>
 
           <View>
-            <Text className='text-lg font-bold'>
-              {t("home.intro.crash_reports_title")}
-            </Text>
+            <Text className='text-lg font-bold'>{copy.crashReportsTitle}</Text>
             {/* The whole row toggles: the Switch itself isn't focusable on TV,
                 so the TouchableOpacity carries the remote-select press there. */}
             <TouchableOpacity
@@ -225,7 +219,7 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
               </View>
               <View className='shrink flex-1 ml-2 mr-3'>
                 <Text className='shrink text-xs'>
-                  {t("home.intro.crash_reports_description")}
+                  {copy.crashReportsDescription}
                 </Text>
               </View>
               {/* Presentational only — the row press above is the single

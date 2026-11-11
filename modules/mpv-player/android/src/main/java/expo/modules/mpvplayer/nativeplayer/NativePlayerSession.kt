@@ -71,6 +71,7 @@ class NativePlayerSession(
 
     private var hostActivity: Activity? = null
     private var overlayContainer: FrameLayout? = null
+    private var danmakuSettings: Map<String, Any> = emptyMap()
     private var danmakuOverlay: expo.modules.mpvplayer.danmaku.DanmakuOverlay? = null
     private var surfaceView: SurfaceView? = null
     private var composeView: ComposeView? = null
@@ -641,6 +642,12 @@ class NativePlayerSession(
 
         engine?.load(loadConfig)
         danmakuOverlay?.clear()
+        config.danmaku = config.danmaku?.toMutableMap()?.apply { putAll(danmakuSettings) }
+        danmakuOverlay?.onSettingsChange = { settings ->
+            danmakuSettings = settings
+            config.danmaku = config.danmaku?.toMutableMap()?.apply { putAll(settings) }
+            emit("onDanmakuSettingsChange", settings)
+        }
         danmakuOverlay?.configure(if (config.stream.playMethod == "Transcode") null else config.danmaku?.let { org.json.JSONObject(it).toString() })
 
         // mpv's pause property is global and survives loadfile, and keep-open=

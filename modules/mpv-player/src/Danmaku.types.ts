@@ -21,6 +21,14 @@ export interface DanmakuConfig {
     ready: string;
     toggle: string;
     retry: string;
+    settings?: string;
+    enabled?: string;
+    fontScale?: string;
+    opacity?: string;
+    maxLines?: string;
+    durationSeconds?: string;
+    offsetSeconds?: string;
+    close?: string;
   };
 }
 

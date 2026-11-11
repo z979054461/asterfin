@@ -38,6 +38,7 @@ import { Controls as TVControls } from "@/components/video-player/controls/Contr
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
 import { DanmakuButton } from "@/components/video-player/controls/DanmakuButton";
+import { DanmakuSettingsModal } from "@/components/video-player/controls/DanmakuSettingsModal";
 import {
   useAutoSubtitlesOnMute,
   useMuteState,
@@ -123,6 +124,7 @@ export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const [danmakuStatus, setDanmakuStatus] = useState<DanmakuStatus>("loading");
   const [danmakuRetryKey, setDanmakuRetryKey] = useState(0);
+  const [danmakuSettingsVisible, setDanmakuSettingsVisible] = useState(false);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
@@ -1525,6 +1527,10 @@ export default function DirectPlayerPage() {
         : "",
     [danmakuConfig, danmakuRetryKey],
   );
+  useEffect(() => {
+    // Keep edits open, but never carry a panel into another item or PiP.
+    setDanmakuSettingsVisible(false);
+  }, [danmakuConfig?.itemId, isPipMode]);
 
   // Extract transcode reasons from the TranscodingUrl
   const transcodeReasons = useMemo<string[]>(
@@ -1930,6 +1936,7 @@ export default function DirectPlayerPage() {
                       available={!!danmakuConfig}
                       enabled={danmakuConfig?.enabled ?? false}
                       status={danmakuStatus}
+                      onSettings={() => setDanmakuSettingsVisible(true)}
                       onToggle={() =>
                         updateSettings({
                           danmaku: {
@@ -1975,6 +1982,10 @@ export default function DirectPlayerPage() {
                   transcodeReasons={transcodeReasons}
                 />
               ))}
+            <DanmakuSettingsModal
+              visible={danmakuSettingsVisible && !!danmakuConfig}
+              onClose={() => setDanmakuSettingsVisible(false)}
+            />
           </View>
         </VideoProvider>
       </PlayerProvider>

@@ -30,11 +30,11 @@ struct DanmakuConfig: Decodable {
     let itemId: String
     let headers: [String: String]
     var enabled: Bool
-    let fontScale: Double
-    let opacity: Double
-    let maxLines: Int
-    let durationSeconds: Double
-    let offsetSeconds: Double
+    var fontScale: Double
+    var opacity: Double
+    var maxLines: Int
+    var durationSeconds: Double
+    var offsetSeconds: Double
     let labels: [String: String]
 
     var endpoint: URL? {

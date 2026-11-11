@@ -1,6 +1,7 @@
 /** Fork-only strings kept outside Crowdin-managed translation catalogues. */
 export const danmakuZh = {
   title: "弹幕",
+  settings: "弹幕设置",
   description:
     "直接读取当前 Jellyfin 服务器已有的 XML，不搜索第三方弹幕源。首版仅支持手机在线点播的直放和直串流；转码、离线、直播、投屏和画中画暂不显示弹幕。",
   enabled: "自动加载弹幕",

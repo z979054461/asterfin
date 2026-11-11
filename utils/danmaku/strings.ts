@@ -11,5 +11,13 @@ export function buildDanmakuLabels(t: TFunction): DanmakuConfig["labels"] {
     ready: t("danmaku.ready"),
     toggle: t("danmaku.title"),
     retry: t("danmaku.retry"),
+    settings: t("danmaku.settings"),
+    enabled: t("danmaku.enabled"),
+    fontScale: t("danmaku.font_scale"),
+    opacity: t("danmaku.opacity"),
+    maxLines: t("danmaku.max_lines"),
+    durationSeconds: t("danmaku.duration"),
+    offsetSeconds: t("danmaku.offset"),
+    close: t("common.close"),
   };
 }

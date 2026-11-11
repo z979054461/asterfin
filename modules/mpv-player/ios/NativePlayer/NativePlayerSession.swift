@@ -26,6 +26,7 @@ final class NativePlayerSession {
 	private let onTornDown: () -> Void
 	private let presenterProvider: () -> UIViewController?
 	private var isDismissing = false
+    private var danmakuSettings: [String: Any] = [:]
 
 	init(
 		emit: @escaping (String, [String: Any]) -> Void,
@@ -150,8 +151,15 @@ final class NativePlayerSession {
 		guard let loadConfig = config.stream.toVideoLoadConfig() else { return }
 		engine.loadVideo(config: loadConfig, force: force)
         #if os(iOS)
-        let danmakuData = config.danmaku.flatMap { try? JSONSerialization.data(withJSONObject: $0) }
+        var currentDanmaku = config.danmaku
+        if currentDanmaku != nil { danmakuSettings.forEach { currentDanmaku?[$0.key] = $0.value } }
+        let danmakuData = currentDanmaku.flatMap { try? JSONSerialization.data(withJSONObject: $0) }
         let danmaku = danmakuData.flatMap { try? JSONDecoder().decode(DanmakuConfig.self, from: $0) }
+        engine.danmakuOverlay.onSettingsChange = { [weak self] settings in
+            guard let self else { return }
+            self.danmakuSettings = settings
+            self.emit("onDanmakuSettingsChange", settings)
+        }
         engine.danmakuOverlay.configure(danmaku?.valid == true ? danmaku : nil)
         #endif
 		engine.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
