@@ -3,6 +3,7 @@ import {
   AndroidConfig,
   type ConfigPlugin,
   withGradleProperties,
+  withProjectBuildGradle,
 } from "expo/config-plugins";
 
 function setGradlePropertiesValue(
@@ -45,7 +46,18 @@ const withCustomGradleProperties: ConfigPlugin = (config) => {
     "org.gradle.jvmargs",
     "-Xmx4096m -XX:MaxMetaspaceSize=1024m",
   );
-  return config;
+  // Cast remains autolinked on TV even though the phone-only Cast UI plugin
+  // is omitted. Pin its transitive SDK there too; the upstream "+" default
+  // pulls MediaRouter requiring API 37 / AGP 9.1 beyond this Expo baseline.
+  return withProjectBuildGradle(config, (project) => {
+    project.modResults.contents = pinCastFramework(project.modResults.contents);
+    return project;
+  });
 };
 
 export default withCustomGradleProperties;
+
+export function pinCastFramework(contents: string): string {
+  if (/castFrameworkVersion\s*=/.test(contents)) return contents;
+  return `${contents}\n// Keep phone and TV on the compatible Cast SDK.\next.castFrameworkVersion = "22.3.1"\n`;
+}

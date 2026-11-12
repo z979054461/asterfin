@@ -25,7 +25,7 @@ it("does not seek, pause, hide controls or exit while the TV settings route owns
   const pause = jest.fn();
   const hide = jest.fn();
   const view = await renderHook(
-    ({ blocked }) =>
+    ({ blocked }: { blocked: boolean }) =>
       useRemoteControl({
         disableSeeking: blocked,
         showControls: true,
