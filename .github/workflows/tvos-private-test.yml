@@ -1,0 +1,159 @@
+# Private unsigned tvOS artifact; source pinned to the verified beta application.
+name: tvOS private unsigned test
+
+on:
+  push:
+    branches: [build/tvos-private-test]
+    paths: [.github/workflows/tvos-private-test.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: tvos-private-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build encrypted unsigned Apple TV test package
+    if: github.repository_id == '1451291617' && github.ref == 'refs/heads/build/tvos-private-test'
+    runs-on: macos-26
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "1"
+      EXPO_TV: "1"
+      EXPO_NO_TELEMETRY: "1"
+      NODE_ENV: production
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      COCOAPODS_DISABLE_STATS: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: a29924a1c66c5b0ce05979a64ab8583f82085aae
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: "1.4.2"
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.6"
+      - name: Verify public encryption recipient and toolchain
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir "$RUNNER_TEMP/asterfin-tvos-private"
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          test -x "$openssl_bin"
+          "$openssl_bin" version
+          fingerprint=$("$openssl_bin" x509 -in scripts/ios/test-delivery-recipient.pem -outform DER | shasum -a 256 | cut -d ' ' -f1)
+          test "$fingerprint" = 'c2513dd6237c0ace91c2c1c18b288b891c3d4638728e4f55613d87815e0b775a'
+          "$openssl_bin" x509 -checkend 7200 -noout -in scripts/ios/test-delivery-recipient.pem
+          xcodebuild -version
+          node -e 'if (Number(process.versions.node.split(".")[0]) < 22) throw new Error("Node 22+ required")'
+      - name: Prepare toolchain and locked source without account credentials
+        run: |
+          set -euo pipefail
+          private="$RUNNER_TEMP/asterfin-tvos-private"
+          {
+            bash scripts/ios/install-metal-toolchain.sh
+            if ! xcrun metal -v; then
+              xcodebuild -downloadComponent MetalToolchain
+              xcrun metal -v
+            fi
+            NODE_ENV=development bun install --frozen-lockfile
+            bunx expo prebuild --platform ios --no-install
+            printf 'export NODE_BINARY="%s"\n' "$(command -v node)" > ios/.xcode.env.local
+            (cd ios && pod install --repo-update)
+          } > "$private/prepare.log" 2>&1
+      - name: Compile complete arm64 Release app without signing
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -workspace ios/Asterfin.xcworkspace \
+            -scheme Asterfin -configuration Release -sdk appletvos \
+            -destination 'generic/platform=tvOS' \
+            -derivedDataPath "$RUNNER_TEMP/asterfin-tvos-derived-data" \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            build > "$RUNNER_TEMP/asterfin-tvos-private/build.log" 2>&1
+      - name: Verify and package tvOS app with source and license records
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, plistlib, re, shutil, subprocess
+          from pathlib import Path
+          app=Path(os.environ['RUNNER_TEMP'])/'asterfin-tvos-derived-data/Build/Products/Release-appletvos/Asterfin.app'
+          out=Path(os.environ['RUNNER_TEMP'])/'asterfin-tvos-private/delivery'
+          assert app.is_dir() and not out.exists()
+          info=plistlib.loads((app/'Info.plist').read_bytes())
+          assert info['CFBundleIdentifier']=='org.personal.jellyfinmobile.dev'
+          assert info['CFBundleSupportedPlatforms']==['AppleTVOS']
+          assert 3 in info['UIDeviceFamily']
+          assert not list(app.rglob('embedded.mobileprovision'))
+          assert not (app/'_CodeSignature').exists()
+          assert (app/'main.jsbundle').stat().st_size>0
+          extension=app/'PlugIns/StreamyfinTopShelf.appex'
+          assert extension.is_dir()
+          for bundle in (app,extension):
+              pi=plistlib.loads((bundle/'Info.plist').read_bytes())
+              assert pi['CFBundleSupportedPlatforms']==['AppleTVOS']
+              subprocess.run(['xcrun','lipo',str(bundle/pi['CFBundleExecutable']),'-verify_arch','arm64'],check=True)
+          sha=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          assert sha=='a29924a1c66c5b0ce05979a64ab8583f82085aae'
+          out.mkdir(mode=0o700)
+          stage=out/'staging'
+          (stage/'Payload').mkdir(parents=True)
+          shutil.copytree(app,stage/'Payload/Asterfin.app',symlinks=True)
+          ipa=out/'Asterfin-0.1.0-beta.1-tvOS-unsigned.ipa'
+          subprocess.run(['ditto','-c','-k','--keepParent','Payload',str(ipa)],cwd=stage,check=True)
+          shutil.rmtree(stage)
+          manifest={'platform':'tvOS','signed':False,'requires_signing_and_provisioning':True,'device_tested':False,'source_commit':sha,'run_id':os.environ['GITHUB_RUN_ID'],'minimum_os':info['MinimumOSVersion'],'bundle_id':info['CFBundleIdentifier'],'device_family':info['UIDeviceFamily'],'architecture':'arm64','extension':'StreamyfinTopShelf','ipa_sha256':hashlib.sha256(ipa.read_bytes()).hexdigest()}
+          (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          (out/'INSTALL.txt').write_text('Unsigned tvOS arm64 device build. Not directly installable.\nRequires Apple signing and provisioning for the app and its Top Shelf extension.\nNo Apple credentials are included. No Apple TV device testing has been performed.\nThis is not an iPhone/iPad IPA or a simulator build.\nSource: https://github.com/z979054461/asterfin/tree/'+sha+'\n')
+          shutil.copy('LICENSE.txt',out/'LICENSE.txt')
+          shutil.copy('ios/Podfile.lock',out/'Podfile.lock')
+          subprocess.run(['git','archive','--format=tar.gz',f'--output={out}/source.tar.gz',sha],check=True)
+          print('PASS: unsigned tvOS arm64 app and Top Shelf extension packaged for private delivery')
+          PY
+      - name: Encrypt delivery or diagnostics before uploading
+        if: always()
+        run: |
+          set -euo pipefail
+          umask 077
+          private="$RUNNER_TEMP/asterfin-tvos-private"
+          test -d "$private"
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          fingerprint=$("$openssl_bin" x509 -in scripts/ios/test-delivery-recipient.pem -outform DER | shasum -a 256 | cut -d ' ' -f1)
+          test "$fingerprint" = 'c2513dd6237c0ace91c2c1c18b288b891c3d4638728e4f55613d87815e0b775a'
+          # Only the dedicated private directory enters the transfer, never the workspace,
+          # runner environment, account settings, credential store, or signing files.
+          ditto -c -k --keepParent "$private" "$RUNNER_TEMP/asterfin-tvos-transfer.zip"
+          mkdir "$RUNNER_TEMP/asterfin-tvos-ciphertext"
+          "$openssl_bin" cms -encrypt -binary -aes-256-gcm -outform DER \
+            -in "$RUNNER_TEMP/asterfin-tvos-transfer.zip" \
+            -out "$RUNNER_TEMP/asterfin-tvos-ciphertext/delivery.cms" \
+            -recip scripts/ios/test-delivery-recipient.pem \
+            -keyopt rsa_padding_mode:oaep -keyopt rsa_oaep_md:sha256 -keyopt rsa_mgf1_md:sha256
+          test -s "$RUNNER_TEMP/asterfin-tvos-ciphertext/delivery.cms"
+      - name: Upload only encrypted bytes for private delivery
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: asterfin-tvos-private-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/asterfin-tvos-ciphertext/delivery.cms
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          archive: true
+          include-hidden-files: false
+      - name: Dispose temporary plaintext and ciphertext
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP/asterfin-tvos-private" \
+            "$RUNNER_TEMP/asterfin-tvos-derived-data" \
+            "$RUNNER_TEMP/asterfin-tvos-transfer.zip" \
+            "$RUNNER_TEMP/asterfin-tvos-ciphertext"
