@@ -34,13 +34,13 @@
         "com.apple.developer.networking.wifi-info": true
       },
       "bundleIdentifier": "org.personal.jellyfinmobile.dev",
-      "icon": "./assets/images/icon-ios-liquid-glass.icon"
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
-        "backgroundColor": "#2E2E2E"
+        "backgroundColor": "#030823"
       },
       "package": "org.personal.jellyfinmobile.dev",
       "permissions": [
@@ -66,7 +66,9 @@
           },
           "infoPlist": {
             "UIAppSupportsHDR": true
-          }
+          },
+          "androidTVBanner": "./assets/images/icon-android-tv-banner.png",
+          "androidTVIcon": "./assets/images/icon-android-tv.png"
         }
       ],
       "expo-router",
