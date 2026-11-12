@@ -566,6 +566,7 @@ final class MPVLayerRenderer {
 
         queue.async { [weak self] in
             self?.networkSource = false
+            self?.networkSourceURL = nil
             self?.pendingLoadGenerations.removeAll()
             self?.activeLoadGeneration = 0
         }
@@ -634,6 +635,8 @@ final class MPVLayerRenderer {
 
     // Queue-confined: a new source or seek must not expose the old read rate.
     private var networkSource = false
+    private var networkSourceURL: String?
+    private var networkLoadGeneration: UInt = 0
     private var networkSampleNotBefore: TimeInterval = 0
 
     func load(
@@ -657,6 +660,8 @@ final class MPVLayerRenderer {
             // Assigned on the queue, not the caller's thread: these values are
             // read by event handlers and reloads that also run on this queue.
             self.networkSource = NetworkSpeed.isRemote(url)
+            self.networkSourceURL = url.absoluteString
+            self.networkLoadGeneration = loadGeneration
             self.networkSampleNotBefore = ProcessInfo.processInfo.systemUptime + NetworkSpeed.sampleInterval
             self.pendingExternalSubtitles = externalSubtitles ?? []
             self.initialSubtitleId = initialSubtitleId
@@ -1698,7 +1703,14 @@ final class MPVLayerRenderer {
 
     private func networkBytesPerSecondOnQueue() -> Double? {
         guard networkSource, let handle = mpv,
+              let expectedURL = networkSourceURL,
+              activeLoadGeneration == networkLoadGeneration,
+              pendingLoadGenerations.isEmpty,
+              getStringProperty(handle: handle, name: "path") == expectedURL,
               ProcessInfo.processInfo.systemUptime >= networkSampleNotBefore else { return nil }
+        // A slow replace can leave the previous stream's cache properties
+        // readable. Both generation and path must match the requested source,
+        // including same-URL reloads; waiting one second alone is not enough.
         var rate: Double = 0
         guard getProperty(handle: handle, name: "demuxer-cache-state/raw-input-rate",
                           format: MPV_FORMAT_DOUBLE, value: &rate) >= 0 else { return nil }
