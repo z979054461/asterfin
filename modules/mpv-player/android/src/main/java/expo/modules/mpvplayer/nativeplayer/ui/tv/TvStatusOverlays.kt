@@ -43,13 +43,12 @@ fun TvStatusOverlays(
     Box(modifier = modifier.fillMaxSize()) {
         // 1. Buffering Spinner
         if (viewModel.isBuffering && viewModel.errorMessage == null) {
-            CircularProgressIndicator(
-                color = TvPalette.OnSurface,
-                strokeWidth = 4.dp,
-                modifier = Modifier
-                    .size(56.dp)
-                    .align(Alignment.Center)
-            )
+            Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = TvPalette.OnSurface, strokeWidth = 4.dp, modifier = Modifier.size(56.dp))
+                viewModel.networkSpeedText?.let { rate ->
+                    Text(rate, color = TvPalette.OnSurface, fontSize = TvMetrics.NETWORK_SPEED_TEXT_SIZE, modifier = Modifier.padding(top = 12.dp))
+                }
+            }
         }
 
         // 2. Technical Info Overlay (top-left, scaled 1.5x)

@@ -31,3 +31,16 @@
 尚未完成跨设备真机验收，不应将开发快照标记为稳定版。平台实现与边界见 [Android](ANDROID.md) 和 [iOS](IOS.md)。
 
 四端适配与设备矩阵见 [TV-PARITY.md](TV-PARITY.md)。当前提交的四端完整构建结果须分别查看 Actions；既有手机成功记录不能替代新增 TV 构建。
+
+## Playback network speed
+
+The player shows the active media stream's read rate in decimal B/s, KB/s and
+MB/s, with a compact top-right readout and a larger buffering readout. This is
+neither the encoded audio/video bitrate nor the selected playback multiplier.
+No speed test or additional media download is started. Local media and engines
+without a valid sample omit the readout; measured idle transfers may show zero.
+Buffer percentages are not inferred from duration or invented. Sampling stops
+when the player is closed; embedded controls also suspend reads in background.
+A successful build does not verify visual placement or throughput accuracy on a
+real phone/TV: check start, seek, pause, cache-full idle, track/quality switch,
+next episode, offline playback and return from background on each target.

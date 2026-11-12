@@ -33,6 +33,8 @@ jobs:
       - run: bun run check
       - run: bun run i18n:check
       - run: bash tests/native/danmaku-android/run.sh
+      - run: bash tests/native/network-speed-android/run.sh
+      - run: python3 tests/native/network-speed-ios/check-source.py
       - run: python3 tests/native/danmaku-ios/check-lifecycle-source.py
       - run: python3 tests/native/check-danmaku-settings-source.py
       - run: python3 tests/native/danmaku-tvos/check-source.py

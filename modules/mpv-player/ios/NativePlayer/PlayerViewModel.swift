@@ -18,6 +18,12 @@ final class PlaybackTimeModel: ObservableObject {
 	@Published var cacheSeconds: Double = 0
 }
 
+/// Isolated from the menu-bearing view model so 1 Hz updates never rebuild
+/// an open native menu (same rule as PlaybackTimeModel).
+final class NetworkSpeedModel: ObservableObject {
+    @Published var bytesPerSecond: Double?
+}
+
 /// Bridges MPVPlayerEngine callbacks into SwiftUI state and dual-emits every
 /// engine event to the JS coordinator via `emit`. Also owns pure-UI behavior:
 /// auto-hide, scrubbing state, display-position interpolation between the
@@ -48,6 +54,56 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// The ticking values live here, not on this object — see
 	/// PlaybackTimeModel. Views that render them observe `time` explicitly.
 	let time = PlaybackTimeModel()
+    let networkSpeed = NetworkSpeedModel()
+    private var networkSpeedTimer: Timer?
+    private var networkSpeedGeneration: UInt = 0
+    private var networkSpeedRequestInFlight = false
+
+    @objc private func clearNetworkSpeed() { resetNetworkSpeed() }
+
+    deinit {
+        networkSpeedTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    private func resetNetworkSpeed() {
+        networkSpeedGeneration &+= 1
+        networkSpeed.bytesPerSecond = nil
+        networkSpeedRequestInFlight = false
+    }
+
+    private func startNetworkSpeedSampling(url: String) {
+        networkSpeedTimer?.invalidate()
+        networkSpeedTimer = nil
+        resetNetworkSpeed()
+        guard let parsedURL = URL(string: url), NetworkSpeed.isRemote(parsedURL) else { return }
+        let timer = Timer(timeInterval: NetworkSpeed.sampleInterval, repeats: true) { [weak self] _ in
+            self?.refreshNetworkSpeed()
+        }
+        networkSpeedTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func refreshNetworkSpeed() {
+        guard !isTearingDown else { return }
+        guard UIApplication.shared.applicationState == .active,
+              (controlsVisible || isBuffering), errorMessage == nil, !isScrubbing else {
+            resetNetworkSpeed()
+            return
+        }
+        guard !networkSpeedRequestInFlight, let engine else { return }
+        networkSpeedRequestInFlight = true
+        let generation = networkSpeedGeneration
+        engine.getNetworkBytesPerSecond { [weak self] rate in
+            DispatchQueue.main.async {
+                guard let self, !self.isTearingDown,
+                      self.networkSpeedGeneration == generation else { return }
+                self.networkSpeedRequestInFlight = false
+                self.networkSpeed.bytesPerSecond = NetworkSpeed.validated(rate)
+            }
+        }
+    }
+
 
 	/// Proxies so internal logic keeps reading/writing the clock naturally.
 	/// Views must NOT rely on these for updates — observe `time`.
@@ -282,6 +338,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	override init() {
 		super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(clearNetworkSpeed),
+            name: UIApplication.willResignActiveNotification, object: nil)
 		#if os(iOS)
 		volumeController.onExternalChange = { [weak self] in
 			self?.revealVolumeSliderTransiently()
@@ -386,6 +444,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			downloadingResultId = nil
 			subtitleSearchLanguage = config.ui.subtitleSearchDefaultLanguage
 		}
+		startNetworkSpeedSampling(url: config.stream.url)
 		currentItemId = newItemId
 		metadata = config.metadata
 		imageHeaders = config.imageHeaders
@@ -428,6 +487,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Reset transient state before an in-place stream swap (re-negotiation
 	/// or episode change) — the view controller stays presented.
 	func prepareForReload() {
+        resetNetworkSpeed()
 		// Drop before the swap: startStream rewrites the engine speed from the
 		// new config, and a release after that must not restore a stale one.
 		isHoldSpeedActive = false
@@ -567,6 +627,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func seek(to target: Double) {
+        resetNetworkSpeed()
 		let clamped = max(0, duration > 0 ? min(target, duration) : target)
 		pendingSeekReport = true
 		position = clamped
@@ -627,6 +688,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: Scrubbing
 
 	func beginScrub() {
+        resetNetworkSpeed()
 		isScrubbing = true
 		scrubPosition = displayPosition
 		lastScrubChapterIndex = chapters.isEmpty ? nil : chapterIndex(at: scrubPosition)
@@ -1328,6 +1390,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func willTeardown() {
 		isTearingDown = true
+        networkSpeedTimer?.invalidate()
+        networkSpeedTimer = nil
+        resetNetworkSpeed()
 		isHoldSpeedActive = false
 		speedBeforeHold = nil
 		autoHideTask?.cancel()
@@ -1616,6 +1681,7 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		isPlaying = false
 		updateDisplayLinkState()
 		errorMessage = message
+        resetNetworkSpeed()
 		showControls()
 		autoHideTask?.cancel()
 		emit?("onError", ["error": message])

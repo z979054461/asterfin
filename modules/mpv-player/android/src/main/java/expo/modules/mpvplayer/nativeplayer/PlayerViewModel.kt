@@ -18,6 +18,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import expo.modules.mpvplayer.nativeplayer.engine.NetworkReadSpeed
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -109,6 +111,21 @@ class PlayerViewModel : PlayerEngine.Delegate {
     // MARK: - Playback State (Compose State for fast UI bindings)
     var isPlaying by mutableStateOf(false)
     var isBuffering by mutableStateOf(true)
+    var networkSpeedText by mutableStateOf<String?>(null)
+        private set
+    private var networkSpeedJob: Job? = null
+
+    private fun startNetworkSpeedSampling() {
+        networkSpeedJob?.cancel()
+        networkSpeedText = null
+        networkSpeedJob = scope.launch {
+            while (!isTearingDown) {
+                delay(NetworkReadSpeed.SAMPLE_INTERVAL_MS)
+                val rate = withContext(Dispatchers.IO) { engine?.getNetworkBytesPerSecond() }
+                networkSpeedText = if (errorMessage == null) NetworkReadSpeed.format(rate) else null
+            }
+        }
+    }
     var isReadyToSeek by mutableStateOf(false)
     var duration by mutableDoubleStateOf(0.0)
     var displayPosition by mutableDoubleStateOf(0.0)
@@ -295,6 +312,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun apply(config: PlayerPresentConfigRecord) {
+        startNetworkSpeedSampling()
         isMpvEngine = config.engine?.lowercase() != "exoplayer"
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
@@ -341,6 +359,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun prepareForReload() {
+        startNetworkSpeedSampling()
         isHoldSpeedActive = false
         speedBeforeHold = nilSpeed()
         isBuffering = true
@@ -520,6 +539,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun seekTo(positionSec: Double) {
+        startNetworkSpeedSampling()
         val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
         pendingSeekReport = true
         displayPosition = clamped
@@ -1186,6 +1206,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun willTeardown() {
         isTearingDown = true
+        networkSpeedJob?.cancel()
+        networkSpeedText = null
         autoHideJob?.cancel()
         countdownJob?.cancel()
         volumeRevealJob?.cancel()

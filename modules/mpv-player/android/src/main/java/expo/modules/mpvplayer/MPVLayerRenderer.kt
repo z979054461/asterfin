@@ -181,6 +181,7 @@ class MPVLayerRenderer(
     
     // Current video config
     private var currentUrl: String? = null
+    @Volatile private var networkSpeedValidAfterMs = Long.MAX_VALUE
     private var currentHeaders: Map<String, String>? = null
     private var pendingExternalSubtitles: List<String> = emptyList()
     // Persistent record of the external subtitle URLs attached to the
@@ -660,6 +661,7 @@ class MPVLayerRenderer(
         val danmakuOperation = danmakuClock.requestLoad()
         val url = config.url
         currentUrl = url
+        networkSpeedValidAfterMs = android.os.SystemClock.elapsedRealtime() + expo.modules.mpvplayer.nativeplayer.engine.NetworkReadSpeed.SAMPLE_INTERVAL_MS
         currentHeaders = config.headers
         pendingExternalSubtitles = config.externalSubtitles ?: emptyList()
         activeExternalSubtitles = pendingExternalSubtitles
@@ -789,6 +791,7 @@ class MPVLayerRenderer(
     }
     
     override fun seekTo(seconds: Double) {
+        networkSpeedValidAfterMs = android.os.SystemClock.elapsedRealtime() + expo.modules.mpvplayer.nativeplayer.engine.NetworkReadSpeed.SAMPLE_INTERVAL_MS
         val danmakuOperation = danmakuClock.requestSeek()
         val clamped = maxOf(0.0, seconds)
         cachedPosition = clamped
@@ -797,6 +800,7 @@ class MPVLayerRenderer(
     }
     
     override fun seekBy(seconds: Double) {
+        networkSpeedValidAfterMs = android.os.SystemClock.elapsedRealtime() + expo.modules.mpvplayer.nativeplayer.engine.NetworkReadSpeed.SAMPLE_INTERVAL_MS
         val danmakuOperation = danmakuClock.requestSeek()
         val newPosition = maxOf(0.0, cachedPosition + seconds)
         cachedPosition = newPosition
@@ -1082,8 +1086,21 @@ class MPVLayerRenderer(
 
     // MARK: - Technical Info
 
+    override fun getNetworkBytesPerSecond(): Double? {
+        if (!isRunning || android.os.SystemClock.elapsedRealtime() < networkSpeedValidAfterMs) return null
+        val url = currentUrl ?: return null
+        if (!url.startsWith("https://", ignoreCase = true) && !url.startsWith("http://", ignoreCase = true)) return null
+        // The async load command may not yet have replaced the previous file.
+        if (mpv?.getPropertyString("path") != url || mpv?.getPropertyBoolean("eof-reached") == true) return null
+        // A full cache retains the last raw rate; it is idle now, so report zero.
+        if (mpv?.getPropertyBoolean("demuxer-cache-idle") == true) return 0.0
+        // mpv raw-input-rate is bytes read/s, not the encoded audio/video bitrate.
+        return mpv?.getPropertyDouble("demuxer-cache-state/raw-input-rate")?.takeIf { it.isFinite() && it >= 0.0 }
+    }
+
     override fun getTechnicalInfo(): Map<String, Any> {
         val info = mutableMapOf<String, Any>()
+        getNetworkBytesPerSecond()?.let { info["networkBytesPerSecond"] = it }
 
         // Video dimensions
         mpv?.getPropertyInt("video-params/w")?.takeIf { it > 0 }?.let {

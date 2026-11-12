@@ -565,6 +565,8 @@ final class MPVLayerRenderer {
         }
 
         queue.async { [weak self] in
+            self?.networkSource = false
+            self?.networkSourceURL = nil
             self?.pendingLoadGenerations.removeAll()
             self?.activeLoadGeneration = 0
         }
@@ -631,6 +633,12 @@ final class MPVLayerRenderer {
         isStopping = false
     }
 
+    // Queue-confined: a new source or seek must not expose the old read rate.
+    private var networkSource = false
+    private var networkSourceURL: String?
+    private var networkLoadGeneration: UInt = 0
+    private var networkSampleNotBefore: TimeInterval = 0
+
     func load(
         url: URL,
         with preset: PlayerPreset,
@@ -651,6 +659,10 @@ final class MPVLayerRenderer {
             guard let self else { return }
             // Assigned on the queue, not the caller's thread: these values are
             // read by event handlers and reloads that also run on this queue.
+            self.networkSource = NetworkSpeed.isRemote(url)
+            self.networkSourceURL = url.absoluteString
+            self.networkLoadGeneration = loadGeneration
+            self.networkSampleNotBefore = ProcessInfo.processInfo.systemUptime + NetworkSpeed.sampleInterval
             self.pendingExternalSubtitles = externalSubtitles ?? []
             self.initialSubtitleId = initialSubtitleId
             self.initialAudioId = initialAudioId
@@ -1238,6 +1250,7 @@ final class MPVLayerRenderer {
         cachedPosition = clamped
         onQueue { [weak self] in
             guard let self, let handle = self.mpv else { return }
+            self.networkSampleNotBefore = ProcessInfo.processInfo.systemUptime + NetworkSpeed.sampleInterval
             self.danmakuClock.issued(clockEpoch)
             self.commandSync(handle, ["seek", String(clamped), "absolute"])
         }
@@ -1252,6 +1265,7 @@ final class MPVLayerRenderer {
         cachedPosition = newPosition
         onQueue { [weak self] in
             guard let self, let handle = self.mpv else { return }
+            self.networkSampleNotBefore = ProcessInfo.processInfo.systemUptime + NetworkSpeed.sampleInterval
             self.danmakuClock.issued(clockEpoch)
             self.commandSync(handle, ["seek", String(seconds), "relative"])
         }
@@ -1681,10 +1695,43 @@ final class MPVLayerRenderer {
         }
     }
 
+    /// Reads mpv's actual demuxer input rate. It is not total-device traffic,
+    /// and does not include unrelated downloads. No probe request is made.
+    func getNetworkBytesPerSecond(completion: @escaping (Double?) -> Void) {
+        onQueue { [weak self] in completion(self?.networkBytesPerSecondOnQueue()) }
+    }
+
+    private func networkBytesPerSecondOnQueue() -> Double? {
+        guard networkSource, let handle = mpv,
+              let expectedURL = networkSourceURL,
+              activeLoadGeneration == networkLoadGeneration,
+              pendingLoadGenerations.isEmpty,
+              getStringProperty(handle: handle, name: "path") == expectedURL,
+              ProcessInfo.processInfo.systemUptime >= networkSampleNotBefore else { return nil }
+        // A slow replace can leave the previous stream's cache properties
+        // readable. Both generation and path must match the requested source,
+        // including same-URL reloads; waiting one second alone is not enough.
+        var rate: Double = 0
+        guard getProperty(handle: handle, name: "demuxer-cache-state/raw-input-rate",
+                          format: MPV_FORMAT_DOUBLE, value: &rate) >= 0 else { return nil }
+        // mpv may retain its last raw-input-rate while the forward cache is
+        // full. Its explicit idle flag means there is no ongoing cache read,
+        // so show zero instead of a stale nonzero throughput.
+        var idle: Int32 = 0
+        if getProperty(handle: handle, name: "demuxer-cache-idle",
+                       format: MPV_FORMAT_FLAG, value: &idle) >= 0, idle != 0 {
+            return 0
+        }
+        return NetworkSpeed.validated(rate)
+    }
+
     private func getTechnicalInfoOnQueue() -> [String: Any] {
         guard let handle = mpv else { return [:] }
 
         var info: [String: Any] = [:]
+        if let rate = networkBytesPerSecondOnQueue() {
+            info["networkBytesPerSecond"] = rate
+        }
 
         // Video dimensions
         var videoWidth: Int64 = 0

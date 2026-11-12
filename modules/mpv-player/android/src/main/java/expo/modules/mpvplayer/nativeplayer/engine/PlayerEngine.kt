@@ -126,6 +126,8 @@ interface PlayerEngine {
     // MARK: - Video
     fun setZoomedToFill(zoomed: Boolean)
     fun getTechnicalInfo(): Map<String, Any>
+    /** Actual network bytes read per second; null for local/unknown/unavailable. */
+    fun getNetworkBytesPerSecond(): Double? = null
 
     // MARK: - State snapshots (safe to read off-main; engines cache them)
     val videoWidth: Int

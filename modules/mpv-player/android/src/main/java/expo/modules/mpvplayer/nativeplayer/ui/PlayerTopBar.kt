@@ -111,6 +111,10 @@ fun PlayerTopBar(
             }
         }
 
+        viewModel.networkSpeedText?.let { rate ->
+            Text(text = rate, color = Color.White, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(horizontal = 8.dp))
+        }
+
         // PiP Button
         if (onPipClick != null) {
             IconButton(

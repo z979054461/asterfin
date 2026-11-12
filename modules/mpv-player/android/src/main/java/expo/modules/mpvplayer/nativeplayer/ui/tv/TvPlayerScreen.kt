@@ -94,6 +94,11 @@ fun TvPlayerScreen(
                     )
                 }
 
+                viewModel.networkSpeedText?.let { rate ->
+                    Text(rate, color = TvPalette.OnSurface, fontSize = TvMetrics.NETWORK_SPEED_TEXT_SIZE,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(horizontal = TvMetrics.INSET_H, vertical = TvMetrics.INSET_V))
+                }
+
                 // Chrome content
                 Column(
                     modifier = Modifier
