@@ -49,7 +49,12 @@ it("keeps the renamed app and its iOS compile workflow aligned", () => {
   );
   expect(workflow).toContain("ios/Asterfin.xcworkspace");
   expect(workflow).toContain("-scheme Asterfin");
-  expect(workflow).toContain("Release-iphoneos/Asterfin.app");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: Literal GitHub Actions expression.
+  expect(workflow).toContain("Release-${{ matrix.sdk }}/Asterfin.app");
+  expect(workflow).toContain("sdk: iphoneos");
+  expect(workflow).toContain("sdk: appletvos");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: Literal GitHub Actions expression.
+  expect(workflow).toContain("EXPO_TV: ${{ matrix.tv }}");
   expect(workflow).not.toContain("JellyfinMobileDev");
 });
 

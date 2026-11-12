@@ -1,4 +1,4 @@
-name: Mobile native checks
+name: Phone and TV native checks
 on:
   push:
     branches: [mobile-dev]
@@ -20,13 +20,22 @@ jobs:
         with:
           persist-credentials: false
       - run: bash tests/native/danmaku-ios/run.sh
+      - run: bash tests/native/danmaku-tvos/run.sh
   android-package:
-    name: Android unsigned test APK (not installable)
+    name: Android ${{ matrix.device }} unsigned test APK (not installable)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: phone
+            tv: "0"
+          - device: TV
+            tv: "1"
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       EXPO_NO_TELEMETRY: "1"
-      EXPO_TV: "0"
+      EXPO_TV: ${{ matrix.tv }}
       NODE_ENV: production
       SENTRY_DISABLE_AUTO_UPLOAD: "true"
       EXPO_PUBLIC_BUILD_PROFILE: ci-test
@@ -76,6 +85,8 @@ jobs:
           info = subprocess.check_output([str(aapt), "dump", "badging", str(apk)], text=True)
           assert "package: name='org.personal.jellyfinmobile.dev'" in info, info
           assert "application-debuggable" not in info, "Release APK is debuggable"
+          if os.environ["EXPO_TV"] == "1":
+              assert "android.software.leanback" in info, "TV matrix must contain a TV manifest"
           with zipfile.ZipFile(apk) as archive:
               names = archive.namelist()
               assert archive.getinfo("assets/index.android.bundle").file_size > 0

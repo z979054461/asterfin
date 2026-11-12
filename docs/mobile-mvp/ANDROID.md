@@ -1,8 +1,8 @@
-# Android mobile danmaku implementation
+# Android phone and TV danmaku implementation
 
 ## Scope and integration
 
-Only `MPVLayerRenderer` on phones/tablets is supported. `DeviceKind` rejects TV configuration natively as well as the JS gate. Native fullscreen ExoPlayer does not instantiate the layer. Transcoded native fullscreen streams drop their danmaku configuration. JS must also gate live/offline/transcoded normal-view playback.
+`MPVLayerRenderer` supports phone/tablet and TV. Native Android TV fullscreen supports MPV and ExoPlayer for DirectPlay/DirectStream; ExoPlayer is sampled on the main thread at the current media position, never the one-second bridge cache. Mobile ExoPlayer remains outside this overlay path. Live/offline/transcoded and unknown playback methods are rejected. Native TV uses the existing Compose More menu and Back stack for settings; Android touch buttons are hidden on TV. See [TV-PARITY.md](TV-PARITY.md) for validation limits.
 
 - Ordinary `MpvPlayerView`: `danmakuConfigJson` changes only the overlay. `onDanmakuStatus` emits `{status,count}` with `loading`, `empty`, `unavailable`, `auth`, `error`, `ready`, or `disabled`. Native buttons are hidden because React controls own toggle/status/retry and the in-player settings panel. Appearance-only updates retain downloaded comments; changing optional `retryKey` requests a fresh load.
 - Native fullscreen `PlayerPresentConfigRecord.danmaku`: optional dictionary matching the shared TS contract. Toggle/status/retry/settings are native Android controls above the mobile gesture chrome. The drawing sibling stays below chrome and separate from video/subtitles. The controls strip follows Compose chrome visibility without hiding the drawing. Temporary view reattachment restarts cancelled loading.

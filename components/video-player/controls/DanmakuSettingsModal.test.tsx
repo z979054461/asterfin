@@ -54,7 +54,7 @@ it("shows no settings content after dismissal and can reopen", async () => {
   expect(screen.queryByText("danmaku.settings")).toBeNull();
 });
 
-it("does not show unsupported TV settings", async () => {
+it("does not mount the mobile modal on TV", async () => {
   const previous = Platform.isTV;
   stubReactNative({ isTV: true });
   try {

@@ -527,6 +527,14 @@ function Layout() {
                                       />
                                       <Stack.Screen name='+not-found' />
                                       <Stack.Screen
+                                        name='(auth)/tv-danmaku-modal'
+                                        options={{
+                                          headerShown: false,
+                                          presentation: "transparentModal",
+                                          animation: "fade",
+                                        }}
+                                      />
+                                      <Stack.Screen
                                         name='(auth)/tv-option-modal'
                                         options={{
                                           headerShown: false,

@@ -19,5 +19,6 @@ export function buildDanmakuLabels(t: TFunction): DanmakuConfig["labels"] {
     durationSeconds: t("danmaku.duration"),
     offsetSeconds: t("danmaku.offset"),
     close: t("common.close"),
+    disabled: t("danmaku.disabled"),
   };
 }

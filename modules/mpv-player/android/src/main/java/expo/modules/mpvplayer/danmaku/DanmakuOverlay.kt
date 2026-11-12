@@ -30,7 +30,7 @@ class DanmakuOverlay(context: Context) : FrameLayout(context) {
     var onSettingsChange: (Map<String, Any>) -> Unit = {}
     private var settingsDialog: Dialog? = null
     var onStatus: (String, Int) -> Unit = { _, _ -> }
-    var showNativeControls = true
+    var showNativeControls = !DeviceKind.isTelevision(context)
     private var chromeVisible = true
     fun setControlsVisible(value: Boolean) { chromeVisible = value; updateVisibility() }
     private fun report(key: String) { status.text = if(key == "disabled") "" else label(key); onStatus(key, entries.size) }
@@ -124,6 +124,21 @@ class DanmakuOverlay(context: Context) : FrameLayout(context) {
             "durationSeconds" to number("durationSeconds", 8.0, 4.0, 12.0),
             "offsetSeconds" to number("offsetSeconds", 0.0, -30.0, 30.0)))
     }
+    /** TV chrome receives preferences and display labels only, never request credentials. */
+    fun preferences(): Map<String, Any> = mapOf(
+        "enabled" to enabled,
+        "fontScale" to number("fontScale", 1.0, .7, 1.5),
+        "opacity" to number("opacity", .85, .3, 1.0),
+        "maxLines" to number("maxLines", 5.0, 1.0, 8.0).toInt(),
+        "durationSeconds" to number("durationSeconds", 8.0, 4.0, 12.0),
+        "offsetSeconds" to number("offsetSeconds", 0.0, -30.0, 30.0))
+    fun displayLabel(key: String): String = label(key)
+    fun setPreference(key: String, value: Any) {
+        if (key !in preferences().keys) return
+        if (key == "enabled") { if (value is Boolean) applySetting(key, value) }
+        else if (value is Number && value.toDouble().isFinite()) applySetting(key, value)
+    }
+    fun retryLoading() { load() }
     private fun openSettings() {
         if (config == null || suspended || !showNativeControls) return
         dismissSettings()
@@ -176,7 +191,7 @@ class DanmakuOverlay(context: Context) : FrameLayout(context) {
         if (next == sourceJson) return
         val decoded = try { if (next.isBlank()) null else JSONObject(next) } catch (_: Exception) { null }
         val previous = config
-        if (previous != null && decoded != null && !DeviceKind.isTelevision(context) &&
+        if (previous != null && decoded != null &&
             listOf("serverUrl", "itemId", "headers", "retryKey").all { previous.opt(it)?.toString() == decoded.opt(it)?.toString() }) {
             config = decoded
             applySetting("enabled", decoded.optBoolean("enabled", false), notify = false)
@@ -185,7 +200,6 @@ class DanmakuOverlay(context: Context) : FrameLayout(context) {
         }
         dismissSettings(); sourceJson = next; cancel(); entries = emptyList(); cues = emptyList()
         config = try { if (next.isBlank()) null else JSONObject(next) } catch (_: Exception) { null }
-        if (DeviceKind.isTelevision(context)) config = null
         enabled = config?.optBoolean("enabled", false) == true
         updateVisibility()
         updateControls(); if (enabled && !suspended) load() else report("disabled")

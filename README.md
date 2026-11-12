@@ -1,21 +1,21 @@
 # Asterfin
 
-Jellyfin 客户端 · Android / iOS · 基于 Streamyfin 的开源衍生项目。
+Jellyfin 客户端 · Android / iOS / Android TV / tvOS · 基于 Streamyfin 的开源衍生项目。
 
-基于 [Streamyfin v0.55.2](https://github.com/streamyfin/streamyfin/releases/tag/v0.55.2) 的 Android / iOS 开源衍生客户端，先完善自托管 Jellyfin 的移动端观看与服务端 XML 弹幕。
+基于 [Streamyfin v0.55.2](https://github.com/streamyfin/streamyfin/releases/tag/v0.55.2) 的 Android / iOS / Android TV / tvOS 开源衍生客户端，提供自托管 Jellyfin 播放与服务端 XML 弹幕。
 
 **开发中，尚未完成真机验收，不是稳定版。** 本项目不是 Jellyfin 或 Streamyfin 官方项目，不把上游已有功能宣称为全新自研。
 
 ## 功能
 
 - 直接读取已连接 Jellyfin 服务器上的 XML 弹幕，不从第三方重新搜索。
-- Android / iOS 普通 MPV 与原生全屏两条路径均接入原生绘制代码。
+- 四端普通 MPV 与原生全屏路径接入弹幕；Android TV 原生全屏还支持 Exo。
 - 弹幕开关、状态/重试、字号、不透明度、行数、显示时长、时间偏移。
 - 媒体时间驱动，加载/暂停/seek/切集生命周期处理，保留下方普通字幕区域。
 - 独立应用身份；不复用上游签名、EAS 更新/推送或崩溃报告项目。
 - 回移上游访问令牌日志修复，避免播放/下载/字幕 URL 和 Android 图片调试日志泄露令牌；最终二进制仍需检查。
 
-媒体库、搜索、继续观看、下一集、倍速、字幕、下载等沿用 Streamyfin 底座。首版弹幕范围限手机/平板的在线 Direct Play / Direct Stream；转码、直播、TV、离线弹幕、投屏与 PiP 弹幕暂不支持。整体视觉重设计和成就系统未做。
+媒体库、搜索、继续观看、下一集、倍速、字幕、下载等沿用 Streamyfin 底座。弹幕覆盖四端的在线 Direct Play / Direct Stream；TV 原生播放器从“更多 → 弹幕设置”进入，旧版 TV 播放器使用控制栏弹幕入口。转码、直播、离线弹幕、投屏与 PiP 弹幕暂不支持。TV 构建与遥控器实机验收状态见[四端适配说明](docs/mobile-mvp/TV-PARITY.md)。整体视觉重设计和成就系统未做。
 
 品牌更名保留既有包名、URL scheme 和签名身份，避免影响安装升级。详见[品牌与兼容性](docs/mobile-mvp/BRANDING.md)。
 
@@ -32,9 +32,9 @@ bun run i18n:check
 bash tests/native/danmaku-android/run.sh
 ```
 
-使用 Node >20 和 Bun 1.4.2。Android 完整构建需要 Android SDK；iOS 需要 Mac / Xcode / 签名配置。Expo Go 无法运行自定义原生播放器。测试记录区分源码检查、原生核心测试与未完成的整机验证，不能用 JS 测试代替手机测试。
+使用 Node >20 和 Bun 1.4.2。Android 完整构建需要 Android SDK；iOS 需要 Mac / Xcode / 签名配置。Expo Go 无法运行自定义原生播放器。测试记录区分源码检查、原生核心测试与未完成的整机验证，不能用 JS 测试代替手机/TV 测试。
 
-CI 包含源码检查、Android/iOS 原生构建及独立测试包流程，详见[测试构建](docs/mobile-mvp/TEST-BUILDS.md)。实际结果以对应提交的 Actions 为准。上游发布、商店提交、通知和定时任务已归档，不会随本开发分支推送运行。
+CI 包含源码检查、Android/iOS/Android TV/tvOS 原生构建及独立测试包流程，详见[测试构建](docs/mobile-mvp/TEST-BUILDS.md)。实际结果以对应提交的 Actions 为准。上游发布、商店提交、通知和定时任务已归档，不会随本开发分支推送运行。
 
 ## 来源与许可
 
@@ -46,10 +46,11 @@ CI 包含源码检查、Android/iOS 原生构建及独立测试包流程，详�
 
 ## English
 
-Asterfin is an experimental Android/iOS derivative of Streamyfin v0.55.2 focused on local rendering
+Asterfin is an experimental Android/iOS/Android TV/tvOS derivative of Streamyfin v0.55.2 focused on local rendering
 of existing Jellyfin-server XML danmaku. No third-party danmaku discovery is added.
 Existing library, playback, resume, next-episode and download functionality comes from
-Streamyfin. Both native and ordinary MPV paths are being integrated.
+Streamyfin. Both native and ordinary MPV paths are integrated, with remote-friendly TV settings.
+Android TV native fullscreen also supports ExoPlayer Direct Play and Direct Stream.
 
 This is a source-development snapshot, **not a validated installable release**. Device behavior and final dependency/distribution compliance remain pending.
 The source retains MPL-2.0; linked native components have separate GPL obligations.

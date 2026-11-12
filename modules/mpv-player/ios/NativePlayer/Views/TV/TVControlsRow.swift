@@ -382,6 +382,11 @@ struct TVControlsRow: View {
 
 	private var moreMenu: some View {
 		Menu {
+            if viewModel.danmakuAvailable {
+                Button(viewModel.engine?.danmakuOverlay.config?.labels["settings"] ?? "Danmaku") {
+                    viewModel.openDanmakuSettings()
+                }
+            }
 			menuRow(
 				label: viewModel.str("zoomToFill", "Zoom to fill"),
 				selected: viewModel.isZoomedToFill

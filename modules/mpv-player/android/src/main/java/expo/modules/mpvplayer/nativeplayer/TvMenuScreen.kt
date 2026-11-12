@@ -10,5 +10,7 @@ enum class TvMenuScreen {
     SUBTITLE_SIZE,
     SUBTITLE_SYNC,
     SPEED,
+    DANMAKU,
+    DANMAKU_VALUE,
     MORE
 }

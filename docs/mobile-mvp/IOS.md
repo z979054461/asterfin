@@ -1,6 +1,6 @@
-# iOS mobile danmaku implementation and verification
+# iOS and tvOS danmaku implementation and verification
 
-The iOS implementation supports mobile MPV playback. Device acceptance remains required.
+The shared implementation supports iOS and tvOS MPV playback. tvOS native fullscreen uses a dedicated SwiftUI focus zone; UIKit switches and steppers remain iOS-only. Device acceptance remains required.
 
 ## Implementation
 
@@ -9,7 +9,7 @@ The iOS implementation supports mobile MPV playback. Device acceptance remains r
 - CoreText measures and builds an immutable plan off-main. Top, rolling and bottom modes have disjoint lanes in the upper 70% of the view. Each lane reserves an entire comment lifetime: deliberately sparse, collision-safe even at changing speed. Very wide comments are dropped rather than truncated or overflowing. With fewer than three available lanes, fixed modes are dropped. Binary search bounds per-frame work to currently active comments. Font scale, opacity, density, duration and offset come from JS settings.
 - Both MpvPlayerView and NativePlayerViewController use the same overlay. Native full-screen has accessible toggle/status/retry controls that follow chrome visibility. The ordinary React path supplies its own controls and receives `onDanmakuStatus`; `retryKey` config changes trigger a new request. Overlay hit testing passes through outside its buttons.
 - Renderer maintains an independent thread-safe media-time snapshot from raw mpv time-pos events and an actual time-pos sample on playback restart. Load/seek/end invalidate it; a lock-protected epoch fences property read/commit races, and a command/boundary gate blocks restarts until the requested load generation or seek boundary arrives; no wall-clock extrapolation or JS progress timing is used. Existing 1 Hz bridge throttling remains. Since no time is extrapolated, pause and buffering do not advance comments.
-- Source reload, disable, detach and teardown cancel downloads and generation-fence late download/layout completions. Appearance-only configuration updates reuse downloaded comments without restarting video. Detach also invalidates CADisplayLink. Temporary engine destroy suspends the overlay while retaining its latest accepted configuration for the next actual load; final shutdown discards it. Background and PiP suppress drawing and controls. PiP intentionally contains no danmaku. TV hosts do not instantiate this overlay.
+- Source reload, disable, detach and teardown cancel downloads and generation-fence late download/layout completions. Appearance-only configuration updates reuse downloaded comments without restarting video. Detach also invalidates CADisplayLink. Temporary engine destroy suspends the overlay while retaining its latest accepted configuration for the next actual load; final shutdown discards it. Background and PiP suppress drawing and controls. PiP intentionally contains no danmaku. tvOS native and legacy hosts instantiate the same drawing overlay; its remote settings use their own controls.
 - Native fullscreen includes a scrollable settings panel. Its `onDanmakuSettingsChange` event carries only the six appearance preferences, which the shared settings store persists. The panel closes on rotation, background, PiP, media replacement and teardown; transport URLs and credentials never enter the preferences event.
 
 ## Validation
@@ -25,7 +25,7 @@ see [TEST-BUILDS.md](TEST-BUILDS.md).
 2. Run the repository's documented Bun iOS prebuild/build steps on a Mac with the required Xcode/MPVKit toolchain. Resolve any Swift/Expo bridge integration errors before further claims.
 3. Against a disposable test server with synthetic XML, test 200/empty/401/403/404/500, delayed chunks, timeout, gzip expansion beyond cap, redirects to another origin (confirm no credentials reach it), malformed XML, and disconnects. Do not use real secrets in fixtures/logs.
 4. Test native full-screen and ordinary MPV on iPhone and iPad: resume, pause, buffer, seek forward/backward, 0.5×/1×/2×, rapid episode/account/server switches, disable during download, repeated retry, rotation, safe areas, HDR, video zoom, controls, subtitle coexistence, background/foreground and PiP return. Verify no old comments reappear and no repeated requests remain after dismiss.
-5. Confirm VoiceOver labels, target sizes and long translated status strings on device, and profile animation time/memory/power with 20,000 comments. Check TV still builds and remains unchanged.
+5. Confirm VoiceOver labels, target sizes and long translated status strings on device, and profile animation time/memory/power with 20,000 comments. Test tvOS remote focus, Back/Menu, repeated opening, paused seek, background and episode replacement as listed in [TV-PARITY.md](TV-PARITY.md).
 
 ## Known MVP tradeoffs
 

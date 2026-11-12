@@ -49,7 +49,7 @@ final class MPVPlayerEngine: NSObject {
 	/// Hosts add this to their layer tree and update its frame on layout.
 	let displayLayer = AVSampleBufferDisplayLayer()
 
-    #if os(iOS)
+    #if os(iOS) || os(tvOS)
     private var existingDanmakuOverlay: DanmakuOverlay?
     var danmakuOverlay: DanmakuOverlay {
         if let overlay = existingDanmakuOverlay { return overlay }
@@ -238,7 +238,7 @@ final class MPVPlayerEngine: NSObject {
 		currentLoop = config.loop
 		loadGeneration &+= 1
 		let currentLoadGeneration = loadGeneration
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         existingDanmakuOverlay?.reloadForMedia()
         #endif
 		#if os(iOS)
@@ -320,7 +320,7 @@ final class MPVPlayerEngine: NSObject {
 	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
 	 */
 	func destroy() {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         existingDanmakuOverlay?.suspendForReuse()
         #endif
 		loadGeneration &+= 1
@@ -372,7 +372,7 @@ final class MPVPlayerEngine: NSObject {
 	func shutdown() {
 		guard !isShutDown else { return }
 		isShutDown = true
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         existingDanmakuOverlay?.stop()
         #endif
 		setPictureInPictureAutoStartEnabled(false)
@@ -780,7 +780,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did start = \(didStartPictureInPicture)", type: "Info")
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         existingDanmakuOverlay?.refreshVisibility()
         #endif
 		// Ensure current time is synced when PiP starts
@@ -798,7 +798,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did stop", type: "Info")
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         existingDanmakuOverlay?.refreshVisibility()
         #endif
 		// Ensure timebase is synced after PiP ends

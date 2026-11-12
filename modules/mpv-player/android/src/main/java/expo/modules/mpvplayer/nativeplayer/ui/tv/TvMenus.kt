@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -106,6 +107,8 @@ fun TvMenuPanel(
                     TvMenuScreen.SUBTITLE_SIZE -> viewModel.str("subtitleSize", "Subtitle size")
                     TvMenuScreen.SUBTITLE_SYNC -> viewModel.str("subtitleSync", "Subtitle sync")
                     TvMenuScreen.SPEED -> viewModel.str("speed", "Speed")
+                    TvMenuScreen.DANMAKU -> viewModel.danmakuLabel("settings")
+                    TvMenuScreen.DANMAKU_VALUE -> viewModel.danmakuLabel(viewModel.danmakuField)
                     TvMenuScreen.MORE -> viewModel.str("playback_options", "More")
                 }
 
@@ -129,6 +132,8 @@ fun TvMenuPanel(
                     TvMenuScreen.SUBTITLE_SIZE -> SubtitleSizeMenu(viewModel)
                     TvMenuScreen.SUBTITLE_SYNC -> SubtitleSyncMenu(viewModel)
                     TvMenuScreen.SPEED -> SpeedMenu(viewModel)
+                    TvMenuScreen.DANMAKU -> DanmakuMenu(viewModel)
+                    TvMenuScreen.DANMAKU_VALUE -> DanmakuValueMenu(viewModel)
                     TvMenuScreen.MORE -> MoreMenu(viewModel)
                 }
             }
@@ -489,11 +494,105 @@ private fun MoreMenu(viewModel: PlayerViewModel) {
             )
         }
 
+        if (viewModel.danmakuAvailable) {
+            item {
+                TvSubmenuRow(
+                    label = viewModel.danmakuLabel("settings"),
+                    onClick = { viewModel.pushTvMenu(TvMenuScreen.DANMAKU) }
+                )
+            }
+        }
+
         item {
             TvMenuRow(
                 label = viewModel.str("technicalInfo", "Technical info"),
                 selected = viewModel.showTechnicalInfo,
                 onClick = { viewModel.showTechnicalInfo = !viewModel.showTechnicalInfo }
+            )
+        }
+    }
+}
+
+/** All adjustments use the existing D-pad list navigation and menu Back stack. */
+private data class DanmakuField(val key: String, val min: Double, val max: Double, val step: Double)
+private val danmakuFields = listOf(
+    DanmakuField("fontScale", .7, 1.5, .1),
+    DanmakuField("opacity", .3, 1.0, .05),
+    DanmakuField("maxLines", 1.0, 8.0, 1.0),
+    DanmakuField("durationSeconds", 4.0, 12.0, 1.0),
+    DanmakuField("offsetSeconds", -30.0, 30.0, .5)
+)
+
+@Composable
+private fun DanmakuMenu(viewModel: PlayerViewModel) {
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { firstFocus.requestFocus() }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
+    ) {
+        item {
+            TvMenuRow(
+                label = viewModel.danmakuLabel("enabled"),
+                selected = viewModel.danmakuPreferences["enabled"] == true,
+                onClick = { viewModel.onDanmakuPreference?.invoke("enabled", viewModel.danmakuPreferences["enabled"] != true) },
+                modifier = Modifier.focusRequester(firstFocus)
+            )
+        }
+        itemsIndexed(danmakuFields) { _, field ->
+            TvSubmenuRow(
+                label = "${viewModel.danmakuLabel(field.key)}: ${viewModel.danmakuPreferences[field.key]}",
+                onClick = {
+                    viewModel.danmakuField = field.key
+                    viewModel.pushTvMenu(TvMenuScreen.DANMAKU_VALUE)
+                }
+            )
+        }
+        if (viewModel.danmakuPreferences["enabled"] == true) {
+            item {
+                TvMenuRow(label = viewModel.danmakuLabel("retry"), selected = false,
+                    onClick = { viewModel.onDanmakuRetry?.invoke() })
+            }
+        }
+        if (viewModel.danmakuStatus.isNotBlank()) {
+            item { Text(viewModel.danmakuStatus, modifier = Modifier.padding(12.dp), fontSize = 16.sp) }
+        }
+        item {
+            TvMenuRow(label = viewModel.danmakuLabel("close"), selected = false,
+                onClick = { viewModel.popTvMenu() })
+        }
+    }
+}
+
+@Composable
+private fun DanmakuValueMenu(viewModel: PlayerViewModel) {
+    val field = danmakuFields.first { it.key == viewModel.danmakuField }
+    val values = remember(field) {
+        (0..((field.max - field.min) / field.step).roundToInt()).map {
+            kotlin.math.round((field.min + it * field.step) * 100) / 100
+        }
+    }
+    val current = (viewModel.danmakuPreferences[field.key] as? Number)?.toDouble() ?: field.min
+    // Keep focus on the selected value when entering (especially the 121 offset values).
+    val initialIndex = remember(field) { values.indices.minByOrNull { abs(values[it] - current) } ?: 0 }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(field) { firstFocus.requestFocus() }
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
+    ) {
+        itemsIndexed(values) { index, value ->
+            TvMenuRow(
+                label = String.format(java.util.Locale.getDefault(), "%.2f", value),
+                selected = abs(current - value) < .001,
+                onClick = {
+                    viewModel.onDanmakuPreference?.invoke(field.key, if (field.key == "maxLines") value.toInt() else value)
+                },
+                modifier = if (index == initialIndex) Modifier.focusRequester(firstFocus) else Modifier
             )
         }
     }

@@ -41,3 +41,7 @@ See [iOS test configuration](IOS-PERSONAL-TEST.md) for feature differences.
 Check the exact commit's workflow results. Core tests, complete app builds,
 signing, installation and runtime validation are distinct stages. The remaining
 device checks are listed in [VALIDATION.md](VALIDATION.md).
+
+## Four-platform compile matrix
+
+`native-checks.yml` now builds unsigned Android phone and Android TV in separate `EXPO_TV=0/1` jobs. `ios-app-check.yml` separately builds iOS and tvOS with the matching SDK, platform extension and bundle-platform check. These jobs do not sign or upload binaries. Results belong to the exact commit, and do not establish remote focus or playback on a device. See [TV-PARITY.md](TV-PARITY.md).

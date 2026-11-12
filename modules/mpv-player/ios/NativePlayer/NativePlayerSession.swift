@@ -150,7 +150,7 @@ final class NativePlayerSession {
 	private func startStream(config: PlayerPresentConfigRecord, force: Bool = false) {
 		guard let loadConfig = config.stream.toVideoLoadConfig() else { return }
 		engine.loadVideo(config: loadConfig, force: force)
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         var currentDanmaku = config.danmaku
         if currentDanmaku != nil { danmakuSettings.forEach { currentDanmaku?[$0.key] = $0.value } }
         let danmakuData = currentDanmaku.flatMap { try? JSONSerialization.data(withJSONObject: $0) }
@@ -161,6 +161,9 @@ final class NativePlayerSession {
             self.emit("onDanmakuSettingsChange", settings)
         }
         engine.danmakuOverlay.configure(danmaku?.valid == true ? danmaku : nil)
+        #if os(tvOS)
+        viewModel.danmakuAvailable = danmaku?.valid == true
+        #endif
         #endif
 		engine.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
 		// Unconditional: mpv's speed property persists on the handle across

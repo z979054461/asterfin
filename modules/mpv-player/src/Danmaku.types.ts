@@ -29,6 +29,7 @@ export interface DanmakuConfig {
     durationSeconds?: string;
     offsetSeconds?: string;
     close?: string;
+    disabled?: string;
   };
 }
 

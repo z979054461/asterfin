@@ -1,4 +1,4 @@
-name: iOS full app compile check
+name: Apple phone and TV full app compile check
 
 on:
   push:
@@ -14,7 +14,21 @@ concurrency:
 
 jobs:
   unsigned-device-build:
-    name: iOS arm64 Release app (unsigned, not installable)
+    name: ${{ matrix.platform }} arm64 Release app (unsigned, not installable)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: iOS
+            tv: "0"
+            sdk: iphoneos
+            extension: StreamyfinDownloadActivity
+            bundle_platform: iPhoneOS
+          - platform: tvOS
+            tv: "1"
+            sdk: appletvos
+            extension: StreamyfinTopShelf
+            bundle_platform: AppleTVOS
     if: github.ref == 'refs/heads/mobile-dev'
     runs-on: macos-26
     timeout-minutes: 90
@@ -23,7 +37,7 @@ jobs:
         shell: bash
     env:
       CI: "1"
-      EXPO_TV: "0"
+      EXPO_TV: ${{ matrix.tv }}
       EXPO_NO_TELEMETRY: "1"
       NODE_ENV: production
       SENTRY_DISABLE_AUTO_UPLOAD: "true"
@@ -47,7 +61,7 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk ${{ matrix.sdk }} --show-sdk-version
           node --version
           bun --version
           ruby --version
@@ -72,7 +86,7 @@ jobs:
           NODE_ENV: development
         run: bun install --frozen-lockfile
 
-      - name: Generate iOS app and extension without signing setup
+      - name: Generate Apple app and extension without signing setup
         run: |
           set -euo pipefail
           bunx expo prebuild --platform ios --no-install
@@ -86,7 +100,7 @@ jobs:
           pod install --repo-update
           test -d Asterfin.xcworkspace
 
-      - name: Build complete device app, JavaScript bundle and Live Activity
+      - name: Build complete device app, JavaScript bundle and platform extension
         # A generic device build validates the arm64 native player without
         # depending on a booted simulator or MPVKit simulator slices. Do not use
         # the production helper: it also packages an IPA after building.
@@ -98,8 +112,8 @@ jobs:
             -workspace ios/Asterfin.xcworkspace \
             -scheme Asterfin \
             -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
+            -sdk ${{ matrix.sdk }} \
+            -destination 'generic/platform=${{ matrix.platform }}' \
             -derivedDataPath "$RUNNER_TEMP/jellyfin-ios-derived-data" \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=NO \
@@ -124,16 +138,18 @@ jobs:
       - name: Verify actual app outputs, without exporting or uploading
         run: |
           set -euxo pipefail
-          app="$RUNNER_TEMP/jellyfin-ios-derived-data/Build/Products/Release-iphoneos/Asterfin.app"
+          app="$RUNNER_TEMP/jellyfin-ios-derived-data/Build/Products/Release-${{ matrix.sdk }}/Asterfin.app"
           test -s "$app/Asterfin"
           test -s "$app/main.jsbundle"
-          test -s "$app/PlugIns/StreamyfinDownloadActivity.appex/StreamyfinDownloadActivity"
+          test -s "$app/PlugIns/${{ matrix.extension }}.appex/${{ matrix.extension }}"
           bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")
           test "$bundle_id" = 'org.personal.jellyfinmobile.dev'
+          bundle_platform=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")
+          test "$bundle_platform" = '${{ matrix.bundle_platform }}'
           xcrun lipo "$app/Asterfin" -verify_arch arm64
           {
-            echo '### iOS compile check passed'
-            echo 'The complete arm64 Release app, bundled JavaScript and Live Activity extension were built without Apple credentials.'
+            echo '### ${{ matrix.platform }} compile check passed'
+            echo 'The complete arm64 Release app, bundled JavaScript and platform extension were built without Apple credentials.'
             echo 'This is not a signed/installable package or a playback/device test. No IPA, app binary or release was uploaded.'
             echo "Commit: $GITHUB_SHA"
             xcodebuild -version

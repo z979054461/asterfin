@@ -72,6 +72,19 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         private const val SIDELOAD_ID_PREFIX = "sideload:"
     }
 
+    /** Canvas calls on main: sample the actual media clock, never the 1s progress cache.
+     * Only sessions with an absolute DirectPlay/DirectStream timeline enable this.
+     * Media3 masks seeks immediately; not-ready / buffering / ended hides stale cues.
+     */
+    fun danmakuTime(): Double? {
+        if (Looper.myLooper() != Looper.getMainLooper() || !isRunning) return null
+        val p = player ?: return null
+        if (p.playbackState != Player.STATE_READY || p.playerError != null) return null
+        // Do not associate an old item's clock with a replacement configuration.
+        if (p.currentMediaItem?.localConfiguration?.uri?.toString() != currentUrl) return null
+        return (p.currentPosition / 1000.0).takeIf { it.isFinite() && it >= 0.0 }
+    }
+
     override var delegate: PlayerEngine.Delegate? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())

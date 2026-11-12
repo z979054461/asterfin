@@ -279,9 +279,16 @@ class NativePlayerSession(
         sView.holder.addCallback(this)
         surfaceView = sView
         container.addView(sView)
-        if (!isTv && engine is expo.modules.mpvplayer.MPVLayerRenderer) {
+        if (isTv || engine is expo.modules.mpvplayer.MPVLayerRenderer) {
             danmakuOverlay = expo.modules.mpvplayer.danmaku.DanmakuOverlay(activity).apply {
-                clock = { (engine as? expo.modules.mpvplayer.MPVLayerRenderer)?.danmakuTime() }
+                clock = {
+                    when (val activeEngine = engine) {
+                        is MPVLayerRenderer -> activeEngine.danmakuTime()
+                        is ExoPlayerEngine -> activeEngine.danmakuTime()
+                        else -> null
+                    }
+                }
+                showNativeControls = !isTv
             }
             container.addView(danmakuOverlay, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
@@ -482,7 +489,11 @@ class NativePlayerSession(
                 mainHandler.removeCallbacks(recoverResumeRunnable)
                 mainHandler.postDelayed(recoverResumeRunnable, RESUME_RECOVERY_DELAY_MS)
             }
-            override fun onActivityPaused(activity: Activity) { if(activity === hostActivity) danmakuOverlay?.suspendOverlay(true) }
+            override fun onActivityPaused(activity: Activity) {
+                if (activity !== hostActivity) return
+                viewModel.resetTvDanmakuMenu()
+                danmakuOverlay?.suspendOverlay(true)
+            }
             override fun onActivityStopped(activity: Activity) {}
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
@@ -529,6 +540,7 @@ class NativePlayerSession(
         viewModel.isPipActive = isInPiP
         danmakuOverlay?.suspendOverlay(isInPiP)
         if (isInPiP) {
+            viewModel.resetTvDanmakuMenu()
             engine?.setSubtitleUseMargins(false)
             engine?.setSubtitleScaleWithWindow(false)
             viewModel.applySubtitleGeometry()
@@ -612,6 +624,7 @@ class NativePlayerSession(
     fun load(config: PlayerPresentConfigRecord) {
         val activity = hostActivity
         val loadAction = {
+            viewModel.resetTvDanmakuMenu()
             if (!rendererStarted) {
                 pendingConfig = config
             } else {
@@ -634,6 +647,7 @@ class NativePlayerSession(
     }
 
     private fun startStream(config: PlayerPresentConfigRecord) {
+        viewModel.resetTvDanmakuMenu()
         val loadConfig = config.stream.toVideoLoadConfig() ?: return
         if (!rendererStarted || !surfaceReady) {
             pendingConfig = config
@@ -645,10 +659,26 @@ class NativePlayerSession(
         config.danmaku = config.danmaku?.toMutableMap()?.apply { putAll(danmakuSettings) }
         danmakuOverlay?.onSettingsChange = { settings ->
             danmakuSettings = settings
+            viewModel.danmakuPreferences = settings
             config.danmaku = config.danmaku?.toMutableMap()?.apply { putAll(settings) }
             emit("onDanmakuSettingsChange", settings)
         }
-        danmakuOverlay?.configure(if (config.stream.playMethod == "Transcode") null else config.danmaku?.let { org.json.JSONObject(it).toString() })
+        // Transcoded timelines can have a non-zero segment origin. Never display
+        // source-timed comments on one or on an unknown playback method.
+        val danmakuConfig = config.danmaku?.takeIf {
+            config.stream.playMethod == "DirectPlay" || config.stream.playMethod == "DirectStream"
+        }
+        viewModel.danmakuAvailable = danmakuOverlay != null && danmakuConfig != null
+        viewModel.danmakuStatus = ""
+        danmakuOverlay?.onStatus = { status, _ ->
+            viewModel.danmakuStatus = danmakuOverlay?.displayLabel(status).orEmpty()
+        }
+        danmakuOverlay?.configure(danmakuConfig?.let { org.json.JSONObject(it).toString() })
+        viewModel.danmakuPreferences = danmakuOverlay?.preferences() ?: emptyMap()
+        viewModel.danmakuLabels = (listOf("settings", "enabled", "retry", "close") + viewModel.danmakuPreferences.keys)
+            .associateWith { danmakuOverlay?.displayLabel(it) ?: it }
+        viewModel.onDanmakuPreference = { key, value -> danmakuOverlay?.setPreference(key, value) }
+        viewModel.onDanmakuRetry = { danmakuOverlay?.retryLoading() }
 
         // mpv's pause property is global and survives loadfile, and keep-open=
         // always leaves it paused at EOF — so a swap into the next episode

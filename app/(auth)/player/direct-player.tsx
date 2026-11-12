@@ -56,6 +56,7 @@ import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useTVDanmakuModal } from "@/hooks/useTVDanmakuModal";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
   type MpvOnErrorEventPayload,
@@ -1520,6 +1521,15 @@ export default function DirectPlayerPage() {
       t,
     ],
   );
+  const openTVDanmakuSettings = useTVDanmakuModal({
+    mediaId: itemId,
+    available: !!danmakuConfig,
+    status: danmakuStatus,
+    onRetry: () => {
+      setDanmakuStatus("loading");
+      setDanmakuRetryKey((key) => key + 1);
+    },
+  });
   const danmakuConfigJson = useMemo(
     () =>
       danmakuConfig
@@ -1896,6 +1906,7 @@ export default function DirectPlayerPage() {
               !isPipMode &&
               (Platform.isTV ? (
                 <TVControls
+                  onOpenDanmakuSettings={openTVDanmakuSettings}
                   mediaSource={stream?.mediaSource}
                   item={item}
                   togglePlay={togglePlay}

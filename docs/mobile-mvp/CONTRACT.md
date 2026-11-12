@@ -1,4 +1,4 @@
-# Mobile danmaku integration contract (implementation work)
+# Four-platform danmaku integration contract (implementation work)
 
 Base: Streamyfin v0.55.2 / 4917c6aad9fcbc08f2dfb075310f3e85182d780e.
 
@@ -17,7 +17,7 @@ New shared TypeScript `DanmakuConfig` in `modules/mpv-player/src/Danmaku.types.t
   labels: { loading: string; empty: string; unavailable: string; auth: string; error: string; ready: string; toggle: string; retry: string; };
 }
 ```
-Native presentation PlayerConfig gets top-level `danmaku` optional object. Normal MPV view gets `danmakuConfigJson` prop (JSON string or empty); config changes must NOT reload video. No ExoPlayer/TV scope; omit config for offline, live TV, TV, transcode (until absolute clock mapping verified), or missing server/account/item.
+Native presentation PlayerConfig gets top-level `danmaku` optional object. Normal MPV view gets `danmakuConfigJson` prop (JSON string or empty); config changes must NOT reload video. The same contract covers Android, iOS, Android TV and tvOS. Android TV native fullscreen additionally samples ExoPlayer directly for DirectPlay/DirectStream. Omit config for offline, live TV, transcode (until absolute clock mapping is verified), or missing server/account/item. TV controls are native Compose/SwiftUI focus surfaces or a navigation-based React TV settings route, never mobile-only sliders forced onto a remote.
 
 Native must build request URL from serverUrl + `/api/danmu/${encoded itemId}/raw`, preserving prefix. No arbitrary metadata URL or token query. For now accept only plain alphanumeric/hyphen/underscore item IDs, reject credentials/query/fragment in serverUrl. No redirects; streaming 8 MiB decompressed cap, 15s total timeout/cancel; strict UTF8, reject DTD/ENTITY, depth cap 8, <=20k records, <=300 Unicode codepoints text, modes 1/4/5. No XML/text/headers/token logging. Error affects overlay only.
 

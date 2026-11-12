@@ -35,6 +35,8 @@ jobs:
       - run: bash tests/native/danmaku-android/run.sh
       - run: python3 tests/native/danmaku-ios/check-lifecycle-source.py
       - run: python3 tests/native/check-danmaku-settings-source.py
+      - run: python3 tests/native/danmaku-tvos/check-source.py
+      - run: python3 tests/native/danmaku-tv-android/check.py
       - name: Expo Doctor (known upstream maintenance warning)
         continue-on-error: true
         run: bun run doctor

@@ -50,6 +50,7 @@ import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { tvDanmakuModalAtom } from "@/utils/atoms/tvDanmakuModal";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { useSegments } from "@/utils/segments";
@@ -73,6 +74,7 @@ import type { Track } from "./types";
 import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
+  onOpenDanmakuSettings?: () => void;
   item: BaseItemDto;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
@@ -212,6 +214,7 @@ export const Controls: FC<Props> = ({
   seek,
   play: _play,
   pause: _pause,
+  onOpenDanmakuSettings,
   togglePlay,
   isPlaying,
   isSeeking,
@@ -243,6 +246,7 @@ export const Controls: FC<Props> = ({
   transcodeReasons,
   downloadedFiles,
 }) => {
+  const danmakuModalOpen = useAtomValue(tvDanmakuModalAtom) !== null;
   const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
@@ -278,7 +282,13 @@ export const Controls: FC<Props> = ({
   const { subtitleTracks: videoContextSubtitleTracks } = useVideoContext();
 
   // Track which button should have preferred focus when controls show
-  type LastModalType = "audio" | "subtitle" | "quality" | "techInfo" | null;
+  type LastModalType =
+    | "audio"
+    | "subtitle"
+    | "quality"
+    | "techInfo"
+    | "danmaku"
+    | null;
   const [lastOpenedModal, setLastOpenedModal] = useState<LastModalType>(null);
 
   // Track if play button should have focus (when showing controls via up/down D-pad)
@@ -1054,7 +1064,7 @@ export const Controls: FC<Props> = ({
   // A single call races the fade-out/native focus engine and occasionally
   // no-ops, so retry across a few frames until it takes.
   useEffect(() => {
-    if (!showControls && !isSkipOrCountdownVisible) {
+    if (!showControls && !isSkipOrCountdownVisible && !danmakuModalOpen) {
       let raf = 0;
       let attempts = 0;
       const tryFocus = () => {
@@ -1072,7 +1082,7 @@ export const Controls: FC<Props> = ({
         if (raf) cancelAnimationFrame(raf);
       };
     }
-  }, [showControls, isSkipOrCountdownVisible]);
+  }, [showControls, isSkipOrCountdownVisible, danmakuModalOpen]);
 
   // When controls are (re)shown with the intent to focus the play button,
   // explicitly move focus to it. `hasTVPreferredFocus` is only reliably
@@ -1084,6 +1094,7 @@ export const Controls: FC<Props> = ({
   useEffect(() => {
     if (
       showControls &&
+      !danmakuModalOpen &&
       focusPlayButton &&
       !isCountdownActive &&
       lastOpenedModal === null &&
@@ -1108,6 +1119,7 @@ export const Controls: FC<Props> = ({
   }, [
     showControls,
     focusPlayButton,
+    danmakuModalOpen,
     isCountdownActive,
     lastOpenedModal,
     isSkipOrCountdownVisible,
@@ -1129,6 +1141,7 @@ export const Controls: FC<Props> = ({
   }, []);
 
   const { isSliding: isRemoteSliding } = useRemoteControl({
+    disableSeeking: danmakuModalOpen,
     showControls: showControls,
     toggleControls,
     togglePlay,
@@ -1155,7 +1168,7 @@ export const Controls: FC<Props> = ({
     episodeView: false,
     onHideControls: hideControls,
     timeout: TV_AUTO_HIDE_TIMEOUT,
-    disabled: false,
+    disabled: danmakuModalOpen,
   });
 
   controlsInteractionRef.current = handleControlsInteraction;
@@ -1235,9 +1248,9 @@ export const Controls: FC<Props> = ({
   goToNextItemRef.current = goToNextItem;
 
   const handleAutoPlayFinish = useCallback(() => {
-    if (exitingRef.current) return;
+    if (exitingRef.current || danmakuModalOpen) return;
     goToNextItem({ isAutoPlay: true });
-  }, [goToNextItem]);
+  }, [goToNextItem, danmakuModalOpen]);
 
   const topOverlayFocusTarget = skipSegmentRef ?? nextEpisodeRef;
 
@@ -1257,8 +1270,12 @@ export const Controls: FC<Props> = ({
         pointerEvents={
           showControls || isSkipOrCountdownVisible ? "none" : "auto"
         }
-        focusable={!showControls && !isSkipOrCountdownVisible}
-        hasTVPreferredFocus={!showControls && !isSkipOrCountdownVisible}
+        focusable={
+          !showControls && !isSkipOrCountdownVisible && !danmakuModalOpen
+        }
+        hasTVPreferredFocus={
+          !showControls && !isSkipOrCountdownVisible && !danmakuModalOpen
+        }
         onPress={() => {
           togglePlay();
           setShowControls(true);
@@ -1282,7 +1299,7 @@ export const Controls: FC<Props> = ({
 
       {/* Generic skip card (intro / recap / commercial / preview) */}
       <TVSkipSegmentCard
-        show={showSkipButton && !isCountdownActive}
+        show={showSkipButton && !isCountdownActive && !danmakuModalOpen}
         onPress={() => {
           // After the seek lands, showSkipButton flips false and this card
           // unmounts. With controls visible the focus-stealing overlay is
@@ -1305,6 +1322,7 @@ export const Controls: FC<Props> = ({
       {/* Skip credits card - show when there's content after credits, OR no next episode */}
       <TVSkipSegmentCard
         show={
+          !danmakuModalOpen &&
           showSkipCreditButton &&
           (hasContentAfterCredits || !nextItem) &&
           !isCountdownActive
@@ -1325,8 +1343,8 @@ export const Controls: FC<Props> = ({
         <TVNextEpisodeCountdown
           nextItem={nextItem}
           api={api}
-          show={isCountdownActive}
-          isPlaying={isPlaying && !isExiting}
+          show={isCountdownActive && !danmakuModalOpen}
+          isPlaying={isPlaying && !isExiting && !danmakuModalOpen}
           onFinish={handleAutoPlayFinish}
           onPlayNext={handleNextItemButton}
           controlsVisible={showControls}
@@ -1494,7 +1512,7 @@ export const Controls: FC<Props> = ({
               onPress={handlePreviousItem}
               disabled={!previousItem}
               size={28}
-              focusable={showControls}
+              focusable={showControls && !danmakuModalOpen}
             />
             {hasChapters && (
               <TVControlButton
@@ -1502,7 +1520,7 @@ export const Controls: FC<Props> = ({
                 onPress={goToPreviousChapter}
                 disabled={!hasPreviousChapter}
                 size={24}
-                focusable={showControls}
+                focusable={showControls && !danmakuModalOpen}
               />
             )}
             <TVControlButton
@@ -1510,7 +1528,7 @@ export const Controls: FC<Props> = ({
               onPress={handlePlayPauseButton}
               size={36}
               refSetter={setPlayButtonRef}
-              focusable={showControls}
+              focusable={showControls && !danmakuModalOpen}
               hasTVPreferredFocus={
                 !isCountdownActive &&
                 focusPlayButton &&
@@ -1523,7 +1541,7 @@ export const Controls: FC<Props> = ({
                 onPress={goToNextChapter}
                 disabled={!hasNextChapter}
                 size={24}
-                focusable={showControls}
+                focusable={showControls && !danmakuModalOpen}
               />
             )}
             <TVControlButton
@@ -1531,7 +1549,7 @@ export const Controls: FC<Props> = ({
               onPress={handleNextItemButton}
               disabled={!nextItem}
               size={28}
-              focusable={showControls}
+              focusable={showControls && !danmakuModalOpen}
             />
 
             {/* Grouped with the transport controls rather than the track
@@ -1545,7 +1563,7 @@ export const Controls: FC<Props> = ({
                 icon={isMuted ? "volume-off" : "volume-medium"}
                 onPress={handleToggleMuteButton}
                 size={28}
-                focusable={showControls}
+                focusable={showControls && !danmakuModalOpen}
               />
             )}
 
@@ -1554,6 +1572,7 @@ export const Controls: FC<Props> = ({
             {onBitrateChange && !offline && !isLiveTV && (
               <TVControlButton
                 icon='speedometer'
+                focusable={showControls && !danmakuModalOpen}
                 onPress={handleOpenQualitySheet}
                 hasTVPreferredFocus={
                   !isCountdownActive && lastOpenedModal === "quality"
@@ -1566,7 +1585,7 @@ export const Controls: FC<Props> = ({
               <TVControlButton
                 icon='volume-high'
                 onPress={handleOpenAudioSheet}
-                focusable={showControls}
+                focusable={showControls && !danmakuModalOpen}
                 hasTVPreferredFocus={
                   !isCountdownActive && lastOpenedModal === "audio"
                 }
@@ -1577,18 +1596,36 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='text'
               onPress={handleOpenSubtitleSheet}
-              focusable={showControls}
+              focusable={showControls && !danmakuModalOpen}
               hasTVPreferredFocus={
                 !isCountdownActive && lastOpenedModal === "subtitle"
               }
               size={24}
             />
 
+            {onOpenDanmakuSettings && (
+              <TVControlButton
+                icon='chatbubbles-outline'
+                accessibilityLabel={t("danmaku.settings")}
+                onPress={() => {
+                  setLastOpenedModal("danmaku");
+                  onOpenDanmakuSettings();
+                  controlsInteractionRef.current();
+                }}
+                focusable={showControls && !danmakuModalOpen}
+                hasTVPreferredFocus={
+                  !isCountdownActive &&
+                  !danmakuModalOpen &&
+                  lastOpenedModal === "danmaku"
+                }
+                size={24}
+              />
+            )}
             {getTechnicalInfo && (
               <TVControlButton
                 icon='code-slash'
                 onPress={handleToggleTechnicalInfo}
-                focusable={showControls}
+                focusable={showControls && !danmakuModalOpen}
                 hasTVPreferredFocus={
                   !isCountdownActive && lastOpenedModal === "techInfo"
                 }
@@ -1635,7 +1672,7 @@ export const Controls: FC<Props> = ({
               onFocus={() => setIsProgressBarFocused(true)}
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
-              focusable={showControls}
+              focusable={showControls && !danmakuModalOpen}
               hasTVPreferredFocus={false}
             />
           </TVFocusGuideView>

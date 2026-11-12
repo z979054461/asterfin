@@ -17,7 +17,10 @@ export function DanmakuSettings({
   const { t } = useTranslation();
   const { settings, updateSettings } = useSettings();
   const value = normalizeDanmakuSettings(settings.danmaku);
-  if (Platform.isTV) return null;
+  if (Platform.isTV) {
+    const { TVDanmakuSettings } = require("./TVDanmakuSettings");
+    return <TVDanmakuSettings compact={compact} />;
+  }
   return (
     <ListGroup
       title={compact ? undefined : t("danmaku.title")}

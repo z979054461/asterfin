@@ -63,6 +63,7 @@ interface UseRemoteControlProps {
  */
 export function useRemoteControl({
   showControls,
+  disableSeeking = false,
   togglePlay,
   onBack,
   onHideControls,
@@ -89,6 +90,8 @@ export function useRemoteControl({
 
   // Use refs to avoid stale closures in BackHandler
   const showControlsRef = useRef(showControls);
+  const disabledRef = useRef(disableSeeking);
+  disabledRef.current = disableSeeking;
   const onHideControlsRef = useRef(onHideControls);
   const onBackRef = useRef(onBack);
   const videoTitleRef = useRef(videoTitle);
@@ -114,6 +117,7 @@ export function useRemoteControl({
   // BackHandler owns player exit: Android TV sends hardware back here, and
   // react-native-tvos maps the Apple TV menu button to the same API.
   useTVBackPress(() => {
+    if (disabledRef.current) return false;
     if (showControlsRef.current && onHideControlsRef.current) {
       // Controls are visible, so the first back press only hides them.
       onHideControlsRef.current();
@@ -151,7 +155,7 @@ export function useRemoteControl({
 
   // TV remote control handling (no-op on non-TV platforms)
   useTVEventHandler((evt) => {
-    if (!evt) return;
+    if (!evt || disabledRef.current) return;
 
     // Back/menu is handled by useTVBackPress above. Keep this handler focused
     // on remote-control events like play/pause, D-pad, and long seek.

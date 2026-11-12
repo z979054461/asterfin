@@ -116,6 +116,20 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var doubleTapSeekFeedbackTask: Task<Void, Never>?
 	#endif
 	@Published var showSubtitleSearch = false
+	#if os(tvOS)
+	@Published var showDanmakuSettings = false
+	@Published var danmakuAvailable = false
+	func openDanmakuSettings() {
+		guard danmakuAvailable else { return }
+		controlsVisible = false
+		showDanmakuSettings = true
+	}
+	func closeDanmakuSettings() {
+		guard showDanmakuSettings else { return }
+		showDanmakuSettings = false
+		showControls()
+	}
+	#endif
 
 	// MARK: - Content state
 
@@ -432,6 +446,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// A server-side subtitle download lands via this reload path — the
 		// sheet's job is done.
 		showSubtitleSearch = false
+		#if os(tvOS)
+		showDanmakuSettings = false
+		#endif
 		downloadingResultId = nil
 		errorMessage = nil
 	}

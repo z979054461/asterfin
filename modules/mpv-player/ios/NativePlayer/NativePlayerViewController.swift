@@ -121,6 +121,7 @@ final class NativePlayerViewController: UIViewController {
 
 		engine.displayLayer.frame = view.bounds
 		videoContainerView.layer.addSublayer(engine.displayLayer)
+        videoContainerView.addSubview(engine.danmakuOverlay)
 
 		#if os(tvOS)
 		// The TV chrome is tvOS 26+ by design (native glass menus etc.) —
@@ -148,6 +149,9 @@ final class NativePlayerViewController: UIViewController {
 					TVSubtitleSearchLayerView(
 						viewModel: viewModel, focusCoordinator: focusCoordinator)),
 				zone: .subtitleSearch)
+            addOverlayLayer(AnyView(TVDanmakuSettingsLayerView(
+                viewModel: viewModel, overlay: engine.danmakuOverlay, focusCoordinator: focusCoordinator)),
+                zone: .danmakuSettings)
 			addOverlayLayer(
 				AnyView(
 					TVStillWatchingLayerView(
@@ -171,7 +175,6 @@ final class NativePlayerViewController: UIViewController {
 		])
 		hosting.didMove(toParent: self)
 		hostingController = hosting
-        videoContainerView.addSubview(engine.danmakuOverlay)
         engine.danmakuOverlay.attachControls(to: view)
 		#endif
 
@@ -310,7 +313,7 @@ final class NativePlayerViewController: UIViewController {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		videoContainerView.frame = view.bounds
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         engine.danmakuOverlay.frame = view.bounds
         #endif
 		engine.displayLayer.frame = zoomAwareLayerFrame()
@@ -425,11 +428,12 @@ final class NativePlayerViewController: UIViewController {
 			viewModel.$controlsVisible, viewModel.$isScrubbing,
 			viewModel.$showEpisodeList, viewModel.$showStillWatching
 		)
-		.combineLatest(viewModel.$showSubtitleSearch)
-		.map { state, subtitleSearch -> TVFocusZone in
+		.combineLatest(viewModel.$showSubtitleSearch, viewModel.$showDanmakuSettings)
+		.map { state, subtitleSearch, danmakuSettings -> TVFocusZone in
 			let (visible, scrubbing, shelf, stillWatching) = state
 			// Top-most focusable layer wins — mirror of the hosts' z-order.
 			if stillWatching { return .stillWatching }
+            if danmakuSettings { return .danmakuSettings }
 			if subtitleSearch { return .subtitleSearch }
 			if shelf { return .shelf }
 			if visible && !scrubbing { return .chrome }
@@ -465,7 +469,9 @@ final class NativePlayerViewController: UIViewController {
 		// window before this recognizer ever sees it): an armed scrub is
 		// abandoned first, visible chrome is hidden next; only a Menu press
 		// from the bare-video state asks to leave playback.
-		if viewModel.showSubtitleSearch {
+		if viewModel.showDanmakuSettings {
+			viewModel.closeDanmakuSettings()
+		} else if viewModel.showSubtitleSearch {
 			viewModel.closeSubtitleSearch()
 		} else if viewModel.showEpisodeList {
 			viewModel.showEpisodeList = false

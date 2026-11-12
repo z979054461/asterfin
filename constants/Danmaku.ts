@@ -1,4 +1,4 @@
-/** Initial mobile scope. These limits also exist in the standalone native engines. */
+/** Shared phone/TV preferences. These limits also exist in the native engines. */
 export const DANMAKU_DEFAULTS = {
   enabled: true,
   fontScale: 1,

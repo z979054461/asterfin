@@ -90,7 +90,6 @@ describe("Jellyfin danmaku request policy", () => {
   });
   it.each([
     { offline: true },
-    { isTV: true },
     { playMethod: "Transcode" },
     { playMethod: undefined },
     { userId: "" },
@@ -105,6 +104,15 @@ describe("Jellyfin danmaku request policy", () => {
       buildDanmakuConfig({ ...input, playMethod: "DirectStream" })?.headers,
     ).toEqual({ "X-Emby-Token": "synthetic-token" });
   });
+  it.each(["DirectPlay", "DirectStream"])(
+    "supports the same secure %s config on TV",
+    (playMethod) => {
+      const mobile = buildDanmakuConfig({ ...input, playMethod });
+      expect(buildDanmakuConfig({ ...input, playMethod, isTV: true })).toEqual(
+        mobile,
+      );
+    },
+  );
   it("keeps a disabled config so the in-player switch can re-enable it", () => {
     expect(
       buildDanmakuConfig({ ...input, settings: { enabled: false } })?.enabled,

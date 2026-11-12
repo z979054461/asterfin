@@ -90,7 +90,7 @@ class MpvPlayerView: ExpoView {
 		engine.displayLayer.frame = bounds
 		engine.displayLayer.contentsScale = contentScaleFactor
 		videoContainer.layer.addSublayer(engine.displayLayer)
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         engine.danmakuOverlay.nativeControls = false
         engine.danmakuOverlay.onStatus = { [weak self] status, count in
             self?.onDanmakuStatus(["status": status, "count": count])
@@ -119,7 +119,7 @@ class MpvPlayerView: ExpoView {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		engine.displayLayer.frame = videoContainer.bounds
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         engine.danmakuOverlay.frame = videoContainer.bounds
         #endif
 		engine.displayLayer.contentsScale = contentScaleFactor
@@ -140,7 +140,7 @@ class MpvPlayerView: ExpoView {
 	}
 
     func setDanmakuConfigJson(_ json: String) {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         engine.danmakuOverlay.configure(json: json)
         #endif
     }

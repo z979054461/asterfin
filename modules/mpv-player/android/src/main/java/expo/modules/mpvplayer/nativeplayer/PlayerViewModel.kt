@@ -93,6 +93,16 @@ class PlayerViewModel : PlayerEngine.Delegate {
      */
     var isMpvEngine by mutableStateOf(true)
 
+    // Transport/auth data stays in the overlay, not in Compose state.
+    var danmakuAvailable by mutableStateOf(false)
+    var danmakuPreferences by mutableStateOf<Map<String, Any>>(emptyMap())
+    var danmakuLabels by mutableStateOf<Map<String, String>>(emptyMap())
+    var danmakuStatus by mutableStateOf("")
+    var danmakuField by mutableStateOf("fontScale")
+    var onDanmakuPreference: ((String, Any) -> Unit)? = null
+    var onDanmakuRetry: (() -> Unit)? = null
+    fun danmakuLabel(key: String): String = danmakuLabels[key] ?: key
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -1080,6 +1090,14 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     // MARK: - TV Menus
+    /** A media/lifecycle boundary must not retain a TV preference route or focus. */
+    fun resetTvDanmakuMenu() {
+        if (tvMenuRoute.any { it == TvMenuScreen.DANMAKU || it == TvMenuScreen.DANMAKU_VALUE }) {
+            closeTvMenu()
+        }
+        danmakuField = "fontScale"
+    }
+
     fun openTvMenu(screen: TvMenuScreen) {
         tvMenuRoute = listOf(screen)
         menuInteractionStarted()

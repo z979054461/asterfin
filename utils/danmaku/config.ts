@@ -71,7 +71,6 @@ export function buildDanmakuConfig(
   const { serverUrl, accessToken, itemId } = input;
   if (
     input.offline ||
-    input.isTV ||
     !input.userId ||
     !serverUrl ||
     !accessToken ||

@@ -10,6 +10,7 @@ import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVControlButtonProps {
+  accessibilityLabel?: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   onLongPress?: () => void;
@@ -29,6 +30,7 @@ export interface TVControlButtonProps {
 }
 
 export const TVControlButton: FC<TVControlButtonProps> = ({
+  accessibilityLabel,
   icon,
   onPress,
   onLongPress,
@@ -45,6 +47,8 @@ export const TVControlButton: FC<TVControlButtonProps> = ({
 
   return (
     <Pressable
+      accessibilityRole='button'
+      accessibilityLabel={accessibilityLabel}
       ref={refSetter}
       onPress={onPress}
       onLongPress={onLongPress}

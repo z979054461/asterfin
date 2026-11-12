@@ -1,5 +1,6 @@
-#if os(iOS)
+#if os(iOS) || os(tvOS)
 import UIKit
+import Combine
 import CoreText
 
 private struct DanmakuGlyph {
@@ -16,7 +17,7 @@ private final class DanmakuDisplayTarget: NSObject {
 }
 
 /// Does not composite into the video sample buffer: PiP and subtitles stay independent.
-final class DanmakuOverlay: UIView {
+final class DanmakuOverlay: UIView, ObservableObject {
     var onSettingsChange: (([String: Any]) -> Void)?
     var onStatus: ((String, Int) -> Void)?
     var nativeControls = true { didSet { updateControls() } }
@@ -25,7 +26,7 @@ final class DanmakuOverlay: UIView {
     var controlsVisible = true { didSet { updateControls() } }
     private var suspendedForReuse = false
     private var resumeConfig: DanmakuConfig?
-    private var config: DanmakuConfig?
+    @Published private(set) var config: DanmakuConfig?
     private var download: DanmakuDownload?
     private var generation = 0
     private var planGeneration = 0
@@ -40,22 +41,25 @@ final class DanmakuOverlay: UIView {
     }
     private var wasSuppressed = false
     private var mediaTime: Double?
-    private var state = "" { didSet {
+    @Published private(set) var state = "" { didSet {
         if state != oldValue { onStatus?(state.isEmpty ? "disabled" : state, comments.count) }
     } }
+    private var settingsOpen = false
+    #if os(iOS)
     private let toggle = UIButton(type: .system)
     private let settings = UIButton(type: .system)
     private let settingsPanel = UIScrollView()
     private let settingsRows = UIStackView()
-    private var settingsOpen = false
     private var settingsViewport = CGSize.zero
     private let retry = UIButton(type: .system)
     private let status = UILabel()
+    #endif
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear; isOpaque = false; clipsToBounds = true
         displayTarget.overlay = self
+        #if os(iOS)
         toggle.addTarget(self, action: #selector(toggleEnabled), for: .touchUpInside)
         retry.addTarget(self, action: #selector(retryDownload), for: .touchUpInside)
         settings.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
@@ -71,15 +75,18 @@ final class DanmakuOverlay: UIView {
         status.font = .systemFont(ofSize: 11); status.textColor = .white
         status.backgroundColor = UIColor.black.withAlphaComponent(0.65)
         status.isAccessibilityElement = true; addSubview(status)
+        #endif
         NotificationCenter.default.addObserver(self, selector: #selector(applicationWillResignActive), name: UIApplication.willResignActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(applicationDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
         updateControls()
     }
     // The drawing stays below SwiftUI chrome. Only these small controls are
     // reparented above its transparent full-screen gesture surface.
+    #if os(iOS)
     func attachControls(to host: UIView) {
         for control in [toggle, retry, status, settings, settingsPanel] { host.addSubview(control) }
     }
+    #endif
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     deinit { NotificationCenter.default.removeObserver(self); displayLink?.invalidate(); download?.cancel() }
 
@@ -147,7 +154,8 @@ final class DanmakuOverlay: UIView {
         guard var config else { return }
         config.enabled.toggle(); applySettings(config)
     }
-    private func applySettings(_ value: DanmakuConfig, notify: Bool = true) {
+    func applySettings(_ value: DanmakuConfig, notify: Bool = true) {
+        guard value.valid else { return }
         let changedEnabled = config?.enabled != value.enabled
         config = value; resumeConfig = value
         if changedEnabled {
@@ -160,6 +168,7 @@ final class DanmakuOverlay: UIView {
             "opacity": value.opacity, "maxLines": value.maxLines,
             "durationSeconds": value.durationSeconds, "offsetSeconds": value.offsetSeconds]) }
     }
+    #if os(iOS)
     @objc private func openSettings() { settingsOpen.toggle(); if settingsOpen { buildSettings() }; updateControls(); setNeedsLayout() }
     private func buildSettings() {
         for view in settingsRows.arrangedSubviews { settingsRows.removeArrangedSubview(view); view.removeFromSuperview() }
@@ -213,7 +222,8 @@ final class DanmakuOverlay: UIView {
         row.heightAnchor.constraint(equalToConstant: 44).isActive = true
         settingsRows.addArrangedSubview(row)
     }
-    @objc private func retryDownload() { fetch() }
+    #endif
+    @objc func retryDownload() { fetch() }
     private func fetch() {
         guard let config, config.enabled else { return }
         generation += 1; planGeneration += 1; let token = generation
@@ -240,6 +250,7 @@ final class DanmakuOverlay: UIView {
     }
     override func layoutSubviews() {
         super.layoutSubviews()
+        #if os(iOS)
         if settingsViewport != .zero && settingsViewport != bounds.size { settingsOpen = false; updateControls() }
         settingsViewport = bounds.size
         let left = safeAreaInsets.left + 12
@@ -251,9 +262,11 @@ final class DanmakuOverlay: UIView {
         settingsPanel.contentSize = CGSize(width: settingsPanel.bounds.width, height: 396)
         retry.frame = CGRect(x: left + 228, y: top, width: 90, height: 44)
         status.frame = CGRect(x: left, y: top + 46, width: min(260, max(0, bounds.width - left)), height: 22)
+        #endif
         if plannedSize != bounds.size { rebuild() }
     }
     private func updateControls() {
+        #if os(iOS)
         let hidden = !nativeControls || config == nil || (!controlsVisible && !settingsOpen) || presentationSuppressed
         settingsPanel.isHidden = hidden || !settingsOpen
         settings.isHidden = hidden || settingsOpen
@@ -268,12 +281,15 @@ final class DanmakuOverlay: UIView {
         toggle.accessibilityTraits = config?.enabled == true ? [.button, .selected] : [.button]
         retry.setTitle(config?.labels["retry"], for: .normal)
         status.text = config?.labels[state]
+        #endif
     }
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        #if os(iOS)
         if !settingsPanel.isHidden && settingsPanel.superview === self && settingsPanel.frame.contains(point) { return settingsPanel.hitTest(convert(point, to: settingsPanel), with: event) }
         for button in [toggle, retry, settings] where !button.isHidden && button.superview === self {
             if button.frame.contains(point) { return button }
         }
+        #endif
         return nil
     }
     private func rebuild() {

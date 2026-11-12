@@ -36,7 +36,8 @@ assert "if (value) dismissSettings()" in android
 assert "fun clear() { dismissSettings()" in android
 assert "oldw > 0 && (w != oldw || h != oldh)) dismissSettings()" in android
 assert "#if os(iOS)" in ios
-assert "DeviceKind.isTelevision(context)" in android
+assert "var showNativeControls = !DeviceKind.isTelevision(context)" in android
+assert "if (DeviceKind.isTelevision(context)) config = null" not in android
 for platform, suffix in [("ios/NativePlayer", "swift"), ("android/src/main/java/expo/modules/mpvplayer/nativeplayer", "kt")]:
     folder = root / "modules/mpv-player" / platform
     module = (folder / f"NativePlayerModule.{suffix}").read_text()
@@ -44,4 +45,4 @@ for platform, suffix in [("ios/NativePlayer", "swift"), ("android/src/main/java/
     assert '"onDanmakuSettingsChange"' in module
     assert 'emit("onDanmakuSettingsChange", settings)' in session
     assert "danmakuSettings = settings" in session
-print("PASS: native settings source contracts (safe events, controls, in-place updates, lifecycle, mobile-only)")
+print("PASS: native settings source contracts (safe events, controls, in-place updates, lifecycle, TV render support)")

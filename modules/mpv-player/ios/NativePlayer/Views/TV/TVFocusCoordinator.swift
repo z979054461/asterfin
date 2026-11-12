@@ -20,6 +20,7 @@ enum TVFocusZone: Hashable {
 	case none
 	case chrome
 	case shelf
+	case danmakuSettings
 	case subtitleSearch
 	case stillWatching
 }
