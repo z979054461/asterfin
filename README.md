@@ -1,56 +1,58 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/z979054461/asterfin/v0.1.0-beta.1/assets/images/icon.png" alt="Asterfin 蓝紫色图标" width="160" height="160" />
+</p>
+
 # Asterfin
 
-Jellyfin 客户端 · Android / iOS / Android TV / tvOS · 基于 Streamyfin 的开源衍生项目。
+连接 Jellyfin 的开源播放器，基于 [Streamyfin](https://github.com/streamyfin/streamyfin)，支持手机与 TV。非 Jellyfin 或 Streamyfin 官方发行版。
 
-基于 [Streamyfin v0.55.2](https://github.com/streamyfin/streamyfin/releases/tag/v0.55.2) 的 Android / iOS / Android TV / tvOS 开源衍生客户端，提供自托管 Jellyfin 播放与服务端 XML 弹幕。
-
-**开发中，尚未完成真机验收，不是稳定版。** 本项目不是 Jellyfin 或 Streamyfin 官方项目，不把上游已有功能宣称为全新自研。
+[下载 v0.1.0-beta.1](https://github.com/z979054461/asterfin/releases/tag/v0.1.0-beta.1) · [开发代码](https://github.com/z979054461/asterfin/tree/mobile-dev) · [开发指南](https://github.com/z979054461/asterfin/blob/mobile-dev/START-HERE.zh-CN.md)
 
 ## 功能
 
-- 直接读取已连接 Jellyfin 服务器上的 XML 弹幕，不从第三方重新搜索。
-- 四端普通 MPV 与原生全屏路径接入弹幕；Android TV 原生全屏还支持 Exo。
-- 弹幕开关、状态/重试、字号、不透明度、行数、显示时长、时间偏移。
-- 媒体时间驱动，加载/暂停/seek/切集生命周期处理，保留下方普通字幕区域。
-- 独立应用身份；不复用上游签名、EAS 更新/推送或崩溃报告项目。
-- 回移上游访问令牌日志修复，避免播放/下载/字幕 URL 和 Android 图片调试日志泄露令牌；最终二进制仍需检查。
+- **Jellyfin 本地弹幕**：直接读取服务器已有 XML，不依赖第三方弹幕搜索。
+- **弹幕设置**：开关、重试、字号、不透明度、行数、显示时长、时间偏移；TV 支持遥控器操作入口。
+- **真实网速**：显示播放器实际媒体下载速度，缓冲时居中提示，控制栏实时显示；没有可靠数据时不显示估算值。
+- **蓝紫色新图标**：统一手机与 TV 品牌资源。
+- 媒体库、搜索、继续观看、下一集、倍速、字幕和下载沿用 Streamyfin 底座。
 
-媒体库、搜索、继续观看、下一集、倍速、字幕、下载等沿用 Streamyfin 底座。弹幕覆盖四端的在线 Direct Play / Direct Stream；TV 原生播放器从“更多 → 弹幕设置”进入，旧版 TV 播放器使用控制栏弹幕入口。转码、直播、离线弹幕、投屏与 PiP 弹幕暂不支持。TV 构建与遥控器实机验收状态见[四端适配说明](docs/mobile-mvp/TV-PARITY.md)。整体视觉重设计和成就系统未做。
+弹幕支持在线 Direct Play / Direct Stream，接入普通 MPV 和原生全屏路径；Android TV 原生全屏另支持 ExoPlayer。转码、直播、离线、投屏和 PiP 弹幕暂不支持。详见[四端适配说明](https://github.com/z979054461/asterfin/blob/mobile-dev/docs/mobile-mvp/TV-PARITY.md)。
 
-品牌更名保留既有包名、URL scheme 和签名身份，避免影响安装升级。详见[品牌与兼容性](docs/mobile-mvp/BRANDING.md)。
+## 版本与平台
 
-## 开发与状态
+**当前为测试版，构建通过不代表真机验收完成。**
 
-[中文起步说明](START-HERE.zh-CN.md) · [验证记录](docs/mobile-mvp/VALIDATION.md) · [Android 实现](docs/mobile-mvp/ANDROID.md) · [iOS 实现](docs/mobile-mvp/IOS.md)
+| 平台 | 当前交付 | 条件与限制 |
+| --- | --- | --- |
+| Android 手机 / 平板 | 已发布签名 APK | Android 8.0+，arm64-v8a |
+| Android TV | 已发布签名 APK | Android 8.0+，arm64-v8a；遥控器与播放仍需真机回归 |
+| iOS / iPadOS | 已构建未签名侧载测试包，未公开分发 | iOS 16.4+；须自行重签，不能直接安装；个人签名构建不含 SSID 探测、远程推送及下载 Live Activity |
+| tvOS | 完整应用编译通过，尚未分发安装包 | Apple 签名与分发配置未完成 |
+
+本次 Release 仅附两个 APK，`android-arm64` 用于手机 / 平板，`android-tv-arm64` 用于 TV。二者沿用同一包名和原签名，不能在同一设备并存；应用版本为 `0.1.0`，Android `versionCode` 为 `2`。
+
+源码检查及四端编译已通过，APK 已核验来源、签名、包名、版本和完整性；尚未完成各端真机播放、网络场景及遥控器回归。整体界面重设计和成就系统未实现。
+
+## 开发
+
+开发与新功能位于 **`mobile-dev`**；默认分支 `develop` 保留上游基线，不是 Asterfin 新功能的构建入口。
 
 ```sh
+git clone --branch mobile-dev https://github.com/z979054461/asterfin.git
+cd asterfin
 bun install --frozen-lockfile
 bun run typecheck
 bun run test:unit
 bun run check
 bun run i18n:check
-bash tests/native/danmaku-android/run.sh
 ```
 
-使用 Node >20 和 Bun 1.4.2。Android 完整构建需要 Android SDK；iOS 需要 Mac / Xcode / 签名配置。Expo Go 无法运行自定义原生播放器。测试记录区分源码检查、原生核心测试与未完成的整机验证，不能用 JS 测试代替手机/TV 测试。
+使用 Bun 1.4.2 与兼容的 Node 环境。Android 完整构建需要 Android SDK；Apple 平台需要 macOS / Xcode，设备安装还需要相应签名。Expo Go 不支持本项目的自定义原生播放器。修改后先运行相关本地检查及可用构建，再提交 CI。
 
-CI 包含源码检查、Android/iOS/Android TV/tvOS 原生构建及独立测试包流程，详见[测试构建](docs/mobile-mvp/TEST-BUILDS.md)。实际结果以对应提交的 Actions 为准。上游发布、商店提交、通知和定时任务已归档，不会随本开发分支推送运行。
+[验证记录](https://github.com/z979054461/asterfin/blob/mobile-dev/docs/mobile-mvp/VALIDATION.md) · [测试构建](https://github.com/z979054461/asterfin/blob/mobile-dev/docs/mobile-mvp/TEST-BUILDS.md) · [贡献说明](CONTRIBUTING.md)
 
 ## 来源与许可
 
-- 主项目来源：Streamyfin，固定提交 `4917c6aad9fcbc08f2dfb075310f3e85182d780e`。
-- 保留 [MPL-2.0](LICENSE.txt)、原始作者与第三方版权声明。新增独立弹幕代码按 MPL-2.0 提供；未复制其他 GPL TV 客户端的渲染代码。
-- **原生依赖另有 GPL 许可，不能把整个安装包描述为仅受 MPL 文件级义务约束。** 实际 iOS MPVKit av5 声明 GPL-3.0；Android 原生 AAR 的具体构成仍待最终制品核查。
-- [许可与分发说明](docs/mobile-mvp/LICENSE-AND-PRIVATE-REPO.md)说明依赖许可与分发要求。开源源码不自动满足二进制对应源码、版权通知或分发渠道全部要求。
-- 感谢 Streamyfin、Jellyfin、mpv、FFmpeg 及其依赖维护者。[上游 README 归档](docs/mobile-mvp/UPSTREAM-README.md)。应用名称为 Asterfin；图标暂沿用开发底座资源，不表示官方背书；正式发布前继续整理品牌和资产许可。
+基于 Streamyfin v0.55.2，感谢原作者 [Fredrik Burmester](https://github.com/fredrikburmester) 及贡献者，以及 Jellyfin、mpv、FFmpeg 维护者。保留 [MPL-2.0](LICENSE.txt)、原始版权与第三方声明。
 
-## English
-
-Asterfin is an experimental Android/iOS/Android TV/tvOS derivative of Streamyfin v0.55.2 focused on local rendering
-of existing Jellyfin-server XML danmaku. No third-party danmaku discovery is added.
-Existing library, playback, resume, next-episode and download functionality comes from
-Streamyfin. Both native and ordinary MPV paths are integrated, with remote-friendly TV settings.
-Android TV native fullscreen also supports ExoPlayer Direct Play and Direct Stream.
-
-This is a source-development snapshot, **not a validated installable release**. Device behavior and final dependency/distribution compliance remain pending.
-The source retains MPL-2.0; linked native components have separate GPL obligations.
+原生播放器依赖另有 GPL 等许可，**整个安装包不能视为仅受 MPL 文件级义务约束**。完整原生依赖审计、对应源码材料及 Apple 分发渠道核验仍有待完成，详见[许可与分发说明](https://github.com/z979054461/asterfin/blob/mobile-dev/docs/mobile-mvp/LICENSE-AND-PRIVATE-REPO.md)。
