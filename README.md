@@ -26,10 +26,10 @@
 | --- | --- | --- |
 | Android 手机 / 平板 | 已发布签名 APK | Android 8.0+，arm64-v8a |
 | Android TV | 已发布签名 APK | Android 8.0+，arm64-v8a；遥控器与播放仍需真机回归 |
-| iOS / iPadOS | 已构建未签名侧载测试包，未公开分发 | iOS 16.4+；须自行重签，不能直接安装；个人签名构建不含 SSID 探测、远程推送及下载 Live Activity |
+| iOS / iPadOS | 已发布未签名 IPA 侧载测试包 | iOS 16.4+；须自行重签，不能直接安装；个人签名构建不含 SSID 探测、远程推送及下载 Live Activity |
 | tvOS | 完整应用编译通过，尚未分发安装包 | Apple 签名与分发配置未完成 |
 
-本次 Release 仅附两个 APK，`android-arm64` 用于手机 / 平板，`android-tv-arm64` 用于 TV。二者沿用同一包名和原签名，不能在同一设备并存；应用版本为 `0.1.0`，Android `versionCode` 为 `2`。
+本次 Release 提供两个 APK 和未签名 iOS IPA；`android-arm64` 用于手机 / 平板，`android-tv-arm64` 用于 TV。二者沿用同一包名和原签名，不能在同一设备并存；应用版本为 `0.1.0`，Android `versionCode` 为 `2`。
 
 源码检查及四端编译已通过，APK 已核验来源、签名、包名、版本和完整性；尚未完成各端真机播放、网络场景及遥控器回归。整体界面重设计和成就系统未实现。
 
