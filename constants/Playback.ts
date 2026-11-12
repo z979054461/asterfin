@@ -6,3 +6,6 @@
  * at once. Shared by the JS and native players so the server sees one cadence.
  */
 export const PROGRESS_REPORT_INTERVAL = 10_000;
+
+/** UI telemetry only while visible or buffering. Never requests media itself. */
+export const NETWORK_SPEED_POLL_INTERVAL = 1_000;

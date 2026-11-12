@@ -116,6 +116,7 @@ private struct TVMetadataHeader: View {
 				}
 			}
 			Spacer()
+            NetworkSpeedLabel(model: viewModel.networkSpeed)
 		}
 	}
 }

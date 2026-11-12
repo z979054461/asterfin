@@ -7,6 +7,10 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
+import android.os.SystemClock
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.TransferListener
 import android.os.Looper
 import android.util.Log
 import android.view.Gravity
@@ -101,6 +105,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val subtitleView: SubtitleView?
 
     private var currentUrl: String? = null
+    private var networkReadSpeed: NetworkReadSpeed? = null
     // The item an audio renderer failure was already retried for.
     private var audioRecoveryAttemptedForUrl: String? = null
     private var currentLoop: Boolean = false
@@ -214,6 +219,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                     }
                 }
                 Player.STATE_ENDED -> {
+                    networkReadSpeed = null
                     onPlaybackStateChange(mapOf(
                         "isPlaying" to false,
                         "isPaused" to true
@@ -251,6 +257,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // report a failure to JS while playback is recovering.
             if (error == null) return
             if (recoverFromAudioRendererError(error)) return
+            networkReadSpeed = null
             val message = describePlaybackError(error)
             Log.e(TAG, "Player error: $message", error)
             onError(mapOf("error" to message))
@@ -281,6 +288,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val progressRunnable = object : Runnable {
         override fun run() {
             val p = player ?: return
+            networkReadSpeed?.sample(SystemClock.elapsedRealtime())
             val positionMs = p.currentPosition
             val durationMs = p.duration
             val bufferedMs = p.bufferedPosition
@@ -526,9 +534,22 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val p = player ?: return
         p.repeatMode = if (config.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
 
+        // Scope callbacks to this source, not global device traffic. A replaced
+        // source keeps its old counter, so in-flight callbacks cannot leak across loads.
+        val counter = NetworkReadSpeed(SystemClock.elapsedRealtime())
+        networkReadSpeed = if (config.url.startsWith("https://", true) || config.url.startsWith("http://", true)) counter else null
+        val transferListener = object : TransferListener {
+            override fun onTransferInitializing(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {}
+            override fun onTransferStart(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {}
+            override fun onBytesTransferred(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean, bytesTransferred: Int) {
+                if (isNetwork) counter.addBytes(bytesTransferred)
+            }
+            override fun onTransferEnd(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {}
+        }
         val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(config.headers ?: emptyMap())
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+            .setTransferListener(transferListener)
 
         val mediaItem = buildMediaItem(config)
 
@@ -611,6 +632,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun destroy() {
+        networkReadSpeed = null
         stopProgressLoop()
         player?.release()
         player = null
@@ -640,12 +662,14 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             return
         }
         loadStartPositionMs = 0L
+        networkReadSpeed?.reset(SystemClock.elapsedRealtime())
         player?.seekTo(targetMs)
     }
 
     fun seekBy(offsetSec: Double) {
         val p = player ?: return
         val target = (p.currentPosition + offsetSec * 1000).coerceAtLeast(0.0)
+        networkReadSpeed?.reset(SystemClock.elapsedRealtime())
         p.seekTo(target.toLong())
     }
 
@@ -1185,6 +1209,9 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         } else 0.0
 
         val info = LinkedHashMap<String, Any>()
+        if (p.playbackState != Player.STATE_ENDED) {
+            networkReadSpeed?.sample(SystemClock.elapsedRealtime())?.let { info["networkBytesPerSecond"] = it }
+        }
         info["cacheSeconds"] = cacheSec
 
         // Dropped frames — populated by analyticsListener.onDroppedVideoFrames.

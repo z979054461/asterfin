@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -122,11 +123,12 @@ fun PlayerScreen(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    modifier = Modifier.size(44.dp),
-                    strokeWidth = 3.dp
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(44.dp), strokeWidth = 3.dp)
+                    viewModel.networkSpeedText?.let { rate ->
+                        androidx.compose.material3.Text(rate, color = Color.White, modifier = Modifier.padding(top = 12.dp))
+                    }
+                }
             }
         }
 

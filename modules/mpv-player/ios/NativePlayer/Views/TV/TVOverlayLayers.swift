@@ -20,10 +20,14 @@ struct TVStatusLayerView: View {
 	var body: some View {
 		ZStack {
 			if viewModel.isBuffering && viewModel.errorMessage == nil {
-				ProgressView()
-					.progressViewStyle(.circular)
-					.tint(.white)
-					.scaleEffect(1.6)
+                VStack(spacing: 24) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .scaleEffect(1.6)
+                    NetworkSpeedLabel(model: viewModel.networkSpeed, prominent: true)
+                }
+                .allowsHitTesting(false)
 			}
 
 			// Stats for nerds — independent of the chrome, like on iOS. The

@@ -196,6 +196,8 @@ export type AudioTrack = {
 };
 
 export type TechnicalInfo = {
+  /** Actual incoming stream bytes per second; omitted for local/unsupported playback. */
+  networkBytesPerSecond?: number;
   videoWidth?: number;
   videoHeight?: number;
   videoCodec?: string;

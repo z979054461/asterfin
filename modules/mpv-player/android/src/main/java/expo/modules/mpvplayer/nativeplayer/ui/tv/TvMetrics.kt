@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * The chrome's shared palette. Every floating surface uses the same glass
@@ -72,6 +73,7 @@ fun Modifier.tvGlass(
 }
 
 object TvMetrics {
+    val NETWORK_SPEED_TEXT_SIZE = 18.sp
     val INSET_H = 48.dp
     val INSET_V = 27.dp
     val FLOATING_BOTTOM_INSET = 47.dp

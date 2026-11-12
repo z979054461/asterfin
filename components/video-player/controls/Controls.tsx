@@ -46,10 +46,12 @@ import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
 import { useChapterNavigation } from "./hooks/useChapterNavigation";
+import { useNetworkSpeed } from "./hooks/useNetworkSpeed";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { NetworkSpeedOverlay } from "./NetworkSpeedOverlay";
 import { SegmentSkippedNotice } from "./SegmentSkippedNotice";
 import { SkipSegmentOverlay } from "./SkipSegmentOverlay";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
@@ -140,6 +142,11 @@ export const Controls: FC<Props> = ({
   transcodeReasons,
 }) => {
   const offline = useOfflineMode();
+  const networkSpeed = useNetworkSpeed(
+    getTechnicalInfo,
+    !offline && (showControls || !!isBuffering),
+    `${item.Id ?? ""}:${mediaSource?.Id ?? ""}`,
+  );
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");
@@ -668,6 +675,11 @@ export const Controls: FC<Props> = ({
 
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
+      <NetworkSpeedOverlay
+        text={networkSpeed}
+        buffering={!!isBuffering}
+        showControls={showControls}
+      />
       {episodeView ? (
         <EpisodeList
           item={item}

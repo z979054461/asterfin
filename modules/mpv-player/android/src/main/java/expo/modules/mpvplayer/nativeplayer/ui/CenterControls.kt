@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -24,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 
 @Composable
@@ -91,11 +95,12 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center
         ) {
             if (viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == null) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    modifier = Modifier.size(36.dp),
-                    strokeWidth = 3.dp
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+                    viewModel.networkSpeedText?.let { rate ->
+                        Text(rate, color = Color.White, fontSize = 10.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
             } else {
                 Icon(
                     imageVector = if (viewModel.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,

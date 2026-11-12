@@ -15,67 +15,70 @@ struct PlayerTopBar: View {
 	private var buttonSize: CGFloat { compact ? 40 : 44 }
 
 	var body: some View {
-		HStack(spacing: 4) {
-			barButton(systemName: "xmark") {
-				viewModel.close()
-			}
-			.accessibilityLabel(viewModel.str("close", "Close"))
-
-			VStack(alignment: .leading, spacing: 2) {
-				if let title = viewModel.metadata?.title {
-					Text(title)
-						.font(.subheadline.weight(.semibold))
-						.foregroundStyle(.white)
-						.lineLimit(1)
+		VStack(alignment: .trailing, spacing: 4) {
+			NetworkSpeedLabel(model: viewModel.networkSpeed)
+			HStack(spacing: 4) {
+				barButton(systemName: "xmark") {
+					viewModel.close()
 				}
-				if let subtitle = viewModel.metadata?.subtitle {
-					Text(subtitle)
-						.font(.caption)
-						.foregroundStyle(.white.opacity(0.7))
-						.lineLimit(1)
+				.accessibilityLabel(viewModel.str("close", "Close"))
+
+				VStack(alignment: .leading, spacing: 2) {
+					if let title = viewModel.metadata?.title {
+						Text(title)
+							.font(.subheadline.weight(.semibold))
+							.foregroundStyle(.white)
+							.lineLimit(1)
+					}
+					if let subtitle = viewModel.metadata?.subtitle {
+						Text(subtitle)
+							.font(.caption)
+							.foregroundStyle(.white.opacity(0.7))
+							.lineLimit(1)
+					}
 				}
-			}
-			.padding(.leading, 8)
+				.padding(.leading, 8)
 
-			Spacer(minLength: 12)
+				Spacer(minLength: 12)
 
-			if viewModel.engine?.isPictureInPictureSupported() == true {
-				barButton(systemName: viewModel.isPipActive ? "pip.exit" : "pip.enter") {
-					viewModel.togglePictureInPicture()
+				if viewModel.engine?.isPictureInPictureSupported() == true {
+					barButton(systemName: viewModel.isPipActive ? "pip.exit" : "pip.enter") {
+						viewModel.togglePictureInPicture()
+					}
 				}
-			}
 
-			if !compact {
-				barButton(
-					systemName: viewModel.isZoomedToFill
-						? "arrow.down.right.and.arrow.up.left"
-						: "arrow.up.left.and.arrow.down.right"
-				) {
-					viewModel.toggleZoomToFill()
+				if !compact {
+					barButton(
+						systemName: viewModel.isZoomedToFill
+							? "arrow.down.right.and.arrow.up.left"
+							: "arrow.up.left.and.arrow.down.right"
+					) {
+						viewModel.toggleZoomToFill()
+					}
 				}
-			}
 
-			if !viewModel.episodeList.isEmpty {
-				barButton(systemName: "list.bullet") {
-					viewModel.showEpisodeList = true
-					viewModel.scheduleAutoHide()
+				if !viewModel.episodeList.isEmpty {
+					barButton(systemName: "list.bullet") {
+						viewModel.showEpisodeList = true
+						viewModel.scheduleAutoHide()
+					}
+					.accessibilityLabel(viewModel.str("episodes", "Episodes"))
 				}
-				.accessibilityLabel(viewModel.str("episodes", "Episodes"))
-			}
 
-			if !compact {
-				speedMenu
-			}
+				if !compact {
+					speedMenu
+				}
 
-			if !viewModel.audioMenu.isEmpty {
-				audioTracksMenu
-			}
+				if !viewModel.audioMenu.isEmpty {
+					audioTracksMenu
+				}
 
-			if !viewModel.subtitleMenu.isEmpty {
-				subtitlesMenu
-			}
+				if !viewModel.subtitleMenu.isEmpty {
+					subtitlesMenu
+				}
 
-			moreMenu
+				moreMenu
+			}
 		}
 	}
 

@@ -7,6 +7,10 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
+import android.os.SystemClock
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.TransferListener
 import android.os.Looper
 import android.util.Log
 import android.view.Gravity
@@ -120,6 +124,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     @Volatile override var playbackResumeIntent: Boolean = false
 
     private var currentUrl: String? = null
+    @Volatile private var networkReadSpeed: NetworkReadSpeed? = null
     // The item an audio renderer failure was already retried for.
     private var audioRecoveryAttemptedForUrl: String? = null
     private var currentHeaders: Map<String, String>? = null
@@ -227,6 +232,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         pendingToken?.let(MpvOwnership::cancel)
         activeOwnershipToken = null
         isRunning = false
+        networkReadSpeed = null
+        latestTechnicalInfo = emptyMap()
 
         stopProgressLoop()
         mainHandler.post {
@@ -420,9 +427,23 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private fun loadInternal(config: VideoLoadConfig) {
         val p = player ?: return
 
+        // A fresh counter belongs only to this source. Late callbacks from the
+        // previous source cannot contaminate the replacement stream.
+        val counter = NetworkReadSpeed(SystemClock.elapsedRealtime())
+        networkReadSpeed = if (config.url.startsWith("https://", true) || config.url.startsWith("http://", true)) counter else null
+        latestTechnicalInfo = emptyMap()
+        val transferListener = object : TransferListener {
+            override fun onTransferInitializing(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {}
+            override fun onTransferStart(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {}
+            override fun onBytesTransferred(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean, bytesTransferred: Int) {
+                if (isNetwork) counter.addBytes(bytesTransferred)
+            }
+            override fun onTransferEnd(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {}
+        }
         val httpFactory = DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(config.headers ?: emptyMap())
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+            .setTransferListener(transferListener)
 
         val mediaItem = buildMediaItem(config)
         val mediaSource = DefaultMediaSourceFactory(dataSourceFactory)
@@ -501,12 +522,14 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             return@post
         }
         loadStartPositionMs = 0L
+        networkReadSpeed?.reset(SystemClock.elapsedRealtime())
         p.seekTo(targetMs)
     }
 
     override fun seekBy(seconds: Double) = post {
         val p = player ?: return@post
         val target = (p.currentPosition + seconds * 1000).coerceAtLeast(0.0)
+        networkReadSpeed?.reset(SystemClock.elapsedRealtime())
         p.seekTo(target.toLong())
     }
 
@@ -1070,7 +1093,13 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     // MARK: - Technical info
 
-    override fun getTechnicalInfo(): Map<String, Any> = latestTechnicalInfo
+    override fun getNetworkBytesPerSecond(): Double? =
+        if (isRunning) networkReadSpeed?.sample(SystemClock.elapsedRealtime()) else null
+
+    override fun getTechnicalInfo(): Map<String, Any> = latestTechnicalInfo.toMutableMap().apply {
+        remove("networkBytesPerSecond")
+        getNetworkBytesPerSecond()?.let { put("networkBytesPerSecond", it) }
+    }
 
     private fun refreshTechnicalInfo() {
         val p = player ?: return
@@ -1259,7 +1288,10 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                         delegate?.onTracksReady()
                     }
                 }
-                Player.STATE_ENDED -> delegate?.onPlaybackEnded()
+                Player.STATE_ENDED -> {
+                    networkReadSpeed = null
+                    delegate?.onPlaybackEnded()
+                }
                 else -> {}
             }
         }
@@ -1275,6 +1307,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             // Null = a previous error was cleared (recovering), not a failure.
             if (error == null) return
             if (recoverFromAudioRendererError(error)) return
+            networkReadSpeed = null
             val message = describePlaybackError(error)
             Log.e(TAG, "Player error: $message", error)
             delegate?.onError(message)
@@ -1321,6 +1354,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             cachedCacheSeconds =
                 if (bufferedMs > positionMs) (bufferedMs - positionMs) / 1000.0 else 0.0
 
+            networkReadSpeed?.sample(SystemClock.elapsedRealtime())
             refreshTechnicalInfo()
 
             // mpv goes silent while paused — the chrome's Choreographer clock

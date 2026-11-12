@@ -21,6 +21,7 @@ jobs:
           persist-credentials: false
       - run: bash tests/native/danmaku-ios/run.sh
       - run: bash tests/native/danmaku-tvos/run.sh
+      - run: bash tests/native/network-speed-ios/run.sh
   android-package:
     name: Android ${{ matrix.device }} unsigned test APK (not installable)
     strategy:

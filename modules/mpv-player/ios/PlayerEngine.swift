@@ -667,6 +667,11 @@ final class MPVPlayerEngine: NSObject {
 	// MARK: - Technical Info
 
 	/// Completion fires on the renderer's mpv work queue (see getSubtitleTracks).
+	func getNetworkBytesPerSecond(completion: @escaping (Double?) -> Void) {
+		guard let renderer else { return completion(nil) }
+		renderer.getNetworkBytesPerSecond(completion: completion)
+	}
+
 	func getTechnicalInfo(completion: @escaping ([String: Any]) -> Void) {
 		guard let renderer else { return completion([:]) }
 		renderer.getTechnicalInfo(completion: completion)

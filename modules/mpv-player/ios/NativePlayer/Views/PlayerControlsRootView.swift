@@ -78,9 +78,13 @@ struct PlayerControlsRootView: View {
 			}
 
 			if viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == nil {
-				ProgressView()
-					.controlSize(.large)
-					.tint(.white)
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.white)
+                    NetworkSpeedLabel(model: viewModel.networkSpeed, prominent: true)
+                }
+                .allowsHitTesting(false)
 			}
 
 			adaptivePlaybackChrome(bottomSafeAreaInset: bottomSafeAreaInset)

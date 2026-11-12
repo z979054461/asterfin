@@ -65,8 +65,10 @@ import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useVideoContext } from "./contexts/VideoContext";
 import { useChapterNavigation } from "./hooks/useChapterNavigation";
+import { useNetworkSpeed } from "./hooks/useNetworkSpeed";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { NetworkSpeedOverlay } from "./NetworkSpeedOverlay";
 import { SegmentSkippedNotice } from "./SegmentSkippedNotice";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { TrickplayBubble } from "./TrickplayBubble";
@@ -486,6 +488,11 @@ export const Controls: FC<Props> = ({
 
   // Segment skipping (intro + outro/credits) via the unified hook.
   const offline = useOfflineMode();
+  const networkSpeed = useNetworkSpeed(
+    getTechnicalInfo,
+    !offline && (showControls || !!isBuffering),
+    `${item.Id ?? ""}:${mediaSource?.Id ?? ""}`,
+  );
 
   const { data: segments } = useSegments(
     item.Id ?? "",
@@ -1256,6 +1263,11 @@ export const Controls: FC<Props> = ({
 
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
+      <NetworkSpeedOverlay
+        text={networkSpeed}
+        buffering={!!isBuffering}
+        showControls={showControls}
+      />
       <Animated.View
         style={[styles.darkOverlay, overlayAnimatedStyle]}
         pointerEvents='none'
