@@ -3,6 +3,8 @@ name: Apple phone and TV full app compile check
 on:
   push:
     branches: [mobile-dev]
+  pull_request:
+    branches: [mobile-dev]
   workflow_dispatch:
 
 permissions:
@@ -29,7 +31,7 @@ jobs:
             sdk: appletvos
             extension: StreamyfinTopShelf
             bundle_platform: AppleTVOS
-    if: github.ref == 'refs/heads/mobile-dev'
+    if: github.ref == 'refs/heads/mobile-dev' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: macos-26
     timeout-minutes: 90
     defaults:
