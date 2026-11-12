@@ -1,4 +1,4 @@
-# Refresh test package after phone and TV danmaku parity.
+# Refresh after approved icon and network speed changes.
 name: iOS private Personal Team test
 
 on:
@@ -49,7 +49,7 @@ jobs:
           test -x "$openssl_bin"
           "$openssl_bin" version
           fingerprint=$("$openssl_bin" x509 -in scripts/ios/test-delivery-recipient.pem -outform DER | shasum -a 256 | cut -d ' ' -f1)
-          test "$fingerprint" = '1fe0500436cceb73a0d4e4a65e71476440222198a64bc1e7deb7a1a347ffae2c'
+          test "$fingerprint" = 'c2513dd6237c0ace91c2c1c18b288b891c3d4638728e4f55613d87815e0b775a'
           "$openssl_bin" x509 -checkend 7200 -noout -in scripts/ios/test-delivery-recipient.pem
           xcodebuild -version
           node -e 'if (Number(process.versions.node.split(".")[0]) < 22) throw new Error("Node 22+ required")'
@@ -96,7 +96,7 @@ jobs:
           test -d "$private"
           openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
           fingerprint=$("$openssl_bin" x509 -in scripts/ios/test-delivery-recipient.pem -outform DER | shasum -a 256 | cut -d ' ' -f1)
-          test "$fingerprint" = '1fe0500436cceb73a0d4e4a65e71476440222198a64bc1e7deb7a1a347ffae2c'
+          test "$fingerprint" = 'c2513dd6237c0ace91c2c1c18b288b891c3d4638728e4f55613d87815e0b775a'
           # Only the dedicated private directory enters the transfer, never the workspace,
           # runner environment, account settings, credential store, or signing files.
           ditto -c -k --keepParent "$private" "$RUNNER_TEMP/asterfin-ios-transfer.zip"
