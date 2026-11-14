@@ -1,16 +1,21 @@
 {
   "expo": {
     "name": "Asterfin",
-    "slug": "jellyfin-mobile-dev",
+    "slug": "asterfin",
     "version": "0.1.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
-    "scheme": "jellyfin-mobile-dev",
+    "scheme": "asterfin",
     "userInterfaceStyle": "dark",
+    "locales": {
+      "en": "./locales/en.json",
+      "zh": "./locales/zh.json"
+    },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "requireFullScreen": true,
       "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
         "NSCameraUsageDescription": "The app needs access to your camera to scan barcodes.",
         "NSMicrophoneUsageDescription": "The app needs access to your microphone.",
         "UIBackgroundModes": ["audio", "fetch"],
@@ -30,10 +35,11 @@
         "usesNonExemptEncryption": false
       },
       "supportsTablet": true,
+      "buildNumber": "3",
       "entitlements": {
         "com.apple.developer.networking.wifi-info": true
       },
-      "bundleIdentifier": "org.personal.jellyfinmobile.dev",
+      "bundleIdentifier": "app.bluuuue.asterfin",
       "icon": "./assets/images/icon.png"
     },
     "android": {
@@ -42,7 +48,8 @@
         "monochromeImage": "./assets/images/icon-android-themed.png",
         "backgroundColor": "#030823"
       },
-      "package": "org.personal.jellyfinmobile.dev",
+      "package": "app.bluuuue.asterfin",
+      "versionCode": 3,
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",

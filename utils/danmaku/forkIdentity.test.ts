@@ -8,9 +8,9 @@ import { danmakuZh } from "./zh";
 it("keeps the personal build separate from upstream signing and services", () => {
   const config = app.expo;
   expect(config.name).toBe("Asterfin");
-  expect(config.ios.bundleIdentifier).toBe("org.personal.jellyfinmobile.dev");
-  expect(config.slug).toBe("jellyfin-mobile-dev");
-  expect(config.scheme).toBe("jellyfin-mobile-dev");
+  expect(config.ios.bundleIdentifier).toBe("app.bluuuue.asterfin");
+  expect(config.slug).toBe("asterfin");
+  expect(config.scheme).toBe("asterfin");
   expect(config.ios.bundleIdentifier).toBe(config.android.package);
   expect(config.ios.bundleIdentifier).not.toContain("fredrikburmester");
   expect(config.ios).not.toHaveProperty("appleTeamId");
@@ -87,4 +87,19 @@ it("does not identify the fork as the upstream client or app-store release", () 
   );
   expect(capabilities).not.toContain("id6593660679");
   expect(capabilities).not.toContain("streamyfin-client-badge.png");
+});
+
+it("localizes the launcher name without changing the native target name", () => {
+  expect(app.expo.ios.infoPlist.CFBundleAllowMixedLocalizations).toBe(true);
+  for (const [language, name] of [
+    ["en", "Asterfin"],
+    ["zh", "星幕"],
+  ]) {
+    const file = language === "en" ? app.expo.locales.en : app.expo.locales.zh;
+    const metadata = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "../..", file), "utf8"),
+    );
+    expect(metadata.ios.CFBundleDisplayName).toBe(name);
+    expect(metadata.android.app_name).toBe(name);
+  }
 });

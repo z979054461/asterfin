@@ -145,7 +145,7 @@ jobs:
           test -s "$app/main.jsbundle"
           test -s "$app/PlugIns/${{ matrix.extension }}.appex/${{ matrix.extension }}"
           bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")
-          test "$bundle_id" = 'org.personal.jellyfinmobile.dev'
+          test "$bundle_id" = 'app.bluuuue.asterfin'
           bundle_platform=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")
           test "$bundle_platform" = '${{ matrix.bundle_platform }}'
           xcrun lipo "$app/Asterfin" -verify_arch arm64

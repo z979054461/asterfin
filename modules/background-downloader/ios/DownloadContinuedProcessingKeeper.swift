@@ -23,7 +23,7 @@
     static let shared = DownloadContinuedProcessingKeeper()
 
     /// Must be declared in BGTaskSchedulerPermittedIdentifiers (see withDownloadLiveActivity.ts).
-    private static let taskIdentifier = (Bundle.main.bundleIdentifier ?? "org.personal.jellyfinmobile.dev") + ".downloads"
+    private static let taskIdentifier = (Bundle.main.bundleIdentifier ?? "app.bluuuue.asterfin") + ".downloads"
 
     private let queue = DispatchQueue(
       label: "com.fredrikburmester.streamyfin.downloadkeeper"

@@ -24,7 +24,7 @@ interface AppExtensionConfig {
 }
 
 function getBundleIdentifier(config: ExpoConfig): string {
-  return config.ios?.bundleIdentifier || "com.fredrikburmester.streamyfin";
+  return config.ios?.bundleIdentifier || "app.bluuuue.asterfin";
 }
 
 function getAppGroupIdentifier(config: ExpoConfig): string {

@@ -22,7 +22,7 @@ interface AppExtensionConfig {
 }
 
 function getBundleIdentifier(config: ExpoConfig): string {
-  return config.ios?.bundleIdentifier || "com.fredrikburmester.streamyfin";
+  return config.ios?.bundleIdentifier || "app.bluuuue.asterfin";
 }
 
 function getAppGroupIdentifier(config: ExpoConfig): string {
@@ -189,7 +189,7 @@ const withTVOSTopShelf: ConfigPlugin = (config) => {
         ...buildConfig.buildSettings,
         CODE_SIGN_ENTITLEMENTS: `${TARGET_SOURCE_DIR}/${EXTENSION_TARGET_NAME}.entitlements`,
         APPLICATION_EXTENSION_API_ONLY: "YES",
-        CURRENT_PROJECT_VERSION: "1",
+        CURRENT_PROJECT_VERSION: config.ios?.buildNumber || "1",
         INFOPLIST_FILE: `${TARGET_SOURCE_DIR}/Info.plist`,
         IPHONEOS_DEPLOYMENT_TARGET:
           buildConfig.buildSettings.IPHONEOS_DEPLOYMENT_TARGET || "15.6",

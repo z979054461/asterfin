@@ -286,7 +286,7 @@ describe("personal builds report only with local consent and an explicit project
     expect(initCalls).toHaveLength(0);
   });
   test("an opted-in custom release reports only to its configured project", () => {
-    mockBuild.applicationId = "org.personal.jellyfinmobile.dev";
+    mockBuild.applicationId = "app.bluuuue.asterfin";
     initialize({ dsn: ownDsn, consent: true });
     expect(initCalls).toHaveLength(1);
     const options = initCalls[0] as Record<string, unknown>;

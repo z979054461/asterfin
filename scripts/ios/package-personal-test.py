@@ -16,7 +16,7 @@ assert not output.exists(), "Refusing to overwrite output"
 sha = os.environ["GITHUB_SHA"]
 assert re.fullmatch(r"[a-f0-9]{40}", sha)
 info = plistlib.loads((app / "Info.plist").read_bytes())
-assert info["CFBundleIdentifier"] == "org.personal.jellyfinmobile.dev"
+assert info["CFBundleIdentifier"] == "app.bluuuue.asterfin"
 assert info["CFBundleExecutable"] == "Asterfin"
 assert info.get("NSSupportsLiveActivities") is False
 assert not list(app.rglob("*.appex")), "Unexpected extension"

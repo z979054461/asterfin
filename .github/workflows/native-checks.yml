@@ -84,7 +84,7 @@ jobs:
           signing = subprocess.run([str(build_tools / "apksigner"), "verify", "--verbose", str(apk)], text=True, capture_output=True)
           assert signing.returncode == 1 and "DOES NOT VERIFY" in signing.stdout + signing.stderr, "APK must remain unsigned"
           info = subprocess.check_output([str(aapt), "dump", "badging", str(apk)], text=True)
-          assert "package: name='org.personal.jellyfinmobile.dev'" in info, info
+          assert "package: name='app.bluuuue.asterfin'" in info, info
           assert "application-debuggable" not in info, "Release APK is debuggable"
           if os.environ["EXPO_TV"] == "1":
               assert "android.software.leanback" in info, "TV matrix must contain a TV manifest"

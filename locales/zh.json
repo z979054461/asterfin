@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "星幕"
+  },
+  "android": {
+    "app_name": "星幕"
+  }
+}
