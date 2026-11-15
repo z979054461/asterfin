@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (name) => fs.readFileSync(path.join(root, name), "utf8");
 const config = JSON.parse(read("app.json")).expo;
@@ -11,9 +12,9 @@ assert.equal(config.ios.bundleIdentifier, identity);
 assert.equal(config.android.package, identity);
 assert.equal(config.scheme, "asterfin");
 assert.equal(config.slug, "asterfin");
-assert.equal(config.version, "0.1.0");
-assert.equal(config.android.versionCode, 3);
-assert.equal(config.ios.buildNumber, "3");
+assert.equal(config.version, "0.1.1");
+assert.equal(config.android.versionCode, 4);
+assert.equal(config.ios.buildNumber, "4");
 assert.equal(config.name, "Asterfin");
 assert.equal(config.ios.infoPlist.CFBundleAllowMixedLocalizations, true);
 for (const [language, display] of [
