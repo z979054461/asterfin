@@ -10,6 +10,10 @@ concurrency:
 on:
   workflow_dispatch:
     inputs:
+      signed_ios:
+        description: Build or repack a signed iPhone IPA (requires configured Expo signing)
+        type: boolean
+        default: false
       full_build:
         description: Build every app in full, without repacking an earlier build
         type: boolean
@@ -518,7 +522,7 @@ jobs:
   # the macOS build below, which also catches a failed repack.
   repack-ios-phone:
     needs: fingerprint
-    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_phone_source != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.signed_ios == true && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_phone_source != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') }}
     runs-on: ubuntu-26.04
     # A repack takes 2 to 3 minutes; a hung one fails here and the build runs.
     timeout-minutes: 15
@@ -590,7 +594,7 @@ jobs:
     # always() keeps a skipped repack job from skipping this required check,
     # which would count as a pass. The full build runs when no earlier IPA can
     # be repacked or the repack job did not succeed.
-    if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') && (needs.fingerprint.outputs.ios_phone_source == '' || needs.repack-ios-phone.result != 'success') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.signed_ios == true && always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') && (needs.fingerprint.outputs.ios_phone_source == '' || needs.repack-ios-phone.result != 'success') }}
     runs-on: macos-26
     name: 🍎 Build iOS IPA (Phone)
     permissions:
