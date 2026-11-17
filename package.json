@@ -186,7 +186,7 @@
       "biome check --write --unsafe --no-errors-on-unmatched"
     ],
     "*.json": [
-      "biome format --write"
+      "biome format --write --no-errors-on-unmatched"
     ]
   },
   "trustedDependencies": [

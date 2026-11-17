@@ -49,16 +49,32 @@ const raw = execFileSync(
     String(LIMIT),
     "--json",
     "tagName",
-    "--jq",
-    ".[].tagName",
   ],
   // Bounded timeout so a stuck gh process fails the job fast instead of
   // holding the workflow open until the job-level timeout.
   { encoding: "utf8", timeout: 30_000 },
 );
+// Only a successful, well-formed empty API result is a clean no-op. Keep gh
+// failures, malformed responses and non-version release tags visible as errors.
+const releases = JSON.parse(raw);
+if (
+  !Array.isArray(releases) ||
+  releases.some(
+    (r) =>
+      !r ||
+      typeof r !== "object" ||
+      typeof r.tagName !== "string" ||
+      /[\r\n]/.test(r.tagName),
+  )
+)
+  throw new Error("Invalid release list response");
+if (releases.length === 0) {
+  console.log("No release versions found — leaving the form untouched.");
+  process.exit(0);
+}
 const seen = new Set();
 const versions = [];
-for (const tag of raw.split("\n")) {
+for (const { tagName: tag } of releases) {
   if (!tag) continue;
   const ver = tag.trim().replace(/^v/, "");
   if (!isVersion(ver) || seen.has(ver)) continue;
