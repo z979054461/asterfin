@@ -146,9 +146,7 @@ describe("Personal Team iOS test flavor", () => {
     expect(pluginNames(config)).not.toContain("expo-notifications");
     expect(pluginNames(config)?.at(-1)).toBe("./plugins/withPersonalTeam.ts");
     expect(config.extra?.iosPersonalTeam).toBe(true);
-    expect(config.ios?.bundleIdentifier).toBe(
-      appJson.expo.ios.bundleIdentifier,
-    );
+    expect(config.ios?.bundleIdentifier).toBe("app.bluuuue.asterfin");
     expect(config.android).toEqual(
       expect.objectContaining(appJson.expo.android),
     );

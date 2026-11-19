@@ -47,6 +47,8 @@ const buildMeta = {
 };
 
 export default ({ config }: ConfigContext): ExpoConfig => {
+  // Local Apple identity selected by the owner; Android identity is unchanged.
+  config.ios = { ...config.ios, bundleIdentifier: "app.bluuuue.asterfin" };
   if (process.env.EXPO_TV !== "1") {
     config.plugins?.push("expo-background-task");
 

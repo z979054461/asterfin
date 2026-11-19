@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Asterfin"
+  },
+  "android": {
+    "app_name": "Asterfin"
+  }
+}
